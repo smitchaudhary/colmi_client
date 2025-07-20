@@ -33,17 +33,28 @@ async fn main() {
 
     match cli.command {
         Commands::Scan { all } => match scan_devices(!all).await {
-            Ok(devices) => {
-                println!("Found {} device(s):", devices.len());
-                for (i, (name, _)) in devices.iter().enumerate() {
-                    println!("  {}. {}", i + 1, name);
+            Ok(devices_info) => {
+                println!("Found {} device(s):", devices_info.len());
+                for (i, (display_name, _)) in devices_info.iter().enumerate() {
+                    println!("  {}. {}", i + 1, display_name);
                 }
             }
             Err(err) => err.display(all),
         },
         Commands::Connect { all } => match scan_devices(!all).await {
-            Ok(devices) => {
-                //
+            Ok(devices_info) => {
+                println!("Found {} device(s):", devices_info.len());
+                let display_names: Vec<String> = devices_info
+                    .iter()
+                    .map(|(name, _)| name.clone())
+                    .collect::<Vec<String>>();
+
+                let index = Select::new("Choose the device to connect to:", display_names)
+                    .raw_prompt()
+                    .unwrap()
+                    .index;
+
+                println!("The user has chosen device number: {index}");
             }
             Err(err) => err.display(all),
         },
@@ -67,7 +78,9 @@ async fn scan_devices(filter_colmi: bool) -> Result<Vec<(String, impl Peripheral
                 let name = props
                     .local_name
                     .unwrap_or_else(|| "Unknown Device".to_string());
-                device_info.push((name, device));
+                let address = props.address.to_string();
+                let display_name = format!("{}, ({})", name, address);
+                device_info.push((display_name, device));
             }
         }
     }
