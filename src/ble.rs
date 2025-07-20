@@ -1,16 +1,19 @@
+use crate::errors::BleError;
 use btleplug::api::{Central, Manager as _, Peripheral, ScanFilter};
 use btleplug::platform::Manager;
 use std::time::Duration;
 use tokio::time;
 
-pub async fn scan_for_devices() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn scan_for_devices() -> Result<Vec<impl Peripheral>, Box<dyn std::error::Error>> {
     let manager = Manager::new().await?;
     let adapters = manager.adapters().await?;
 
     if adapters.is_empty() {
         println!("No Bluetooth adapters found");
-        return Ok(());
+        return Err(Box::new(BleError::NoAdapters));
     }
+
+    let mut devices: Vec<_> = Vec::new();
 
     for adapter in adapters {
         println!(
@@ -24,8 +27,6 @@ pub async fn scan_for_devices() -> Result<(), Box<dyn std::error::Error>> {
 
         let peripherals = adapter.peripherals().await?;
 
-        let mut devices: Vec<_> = Vec::new();
-
         for peripheral in peripherals {
             if let Ok(Some(props)) = peripheral.properties().await {
                 if props.manufacturer_data.contains_key(&4660) {
@@ -33,25 +34,11 @@ pub async fn scan_for_devices() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-
-        if devices.is_empty() {
-            println!("No devices found");
-        } else {
-            println!("Found {} devices:", devices.len());
-
-            for peripheral in devices {
-                let properties = peripheral.properties().await?;
-
-                if let Some(props) = properties {
-                    println!("  Address: {}", props.address);
-                    println!("  Local name: {:?}", props.local_name);
-                    println!("  Manufacturer data: {:?}", props.manufacturer_data);
-                    println!("  RSSI: {:?}", props.rssi);
-                    println!();
-                }
-            }
-        }
     }
 
-    Ok(())
+    if devices.is_empty() {
+        return Err(Box::new(BleError::NoDevices));
+    }
+
+    Ok(devices)
 }
