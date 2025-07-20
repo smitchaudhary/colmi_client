@@ -1,6 +1,7 @@
 mod ble;
 mod errors;
 use btleplug::api::Peripheral;
+use inquire::Select;
 
 use crate::errors::BleError;
 
@@ -10,17 +11,24 @@ async fn main() {
 
     match ble::scan_for_devices().await {
         Ok(devices) => {
+            let mut device_info = Vec::new();
             for device in devices {
-                let properties = device.properties().await.unwrap();
-
-                if let Some(props) = properties {
-                    println!("  Address: {}", props.address);
-                    println!("  Local name: {:?}", props.local_name);
-                    println!("  Manufacturer data: {:?}", props.manufacturer_data);
-                    println!("  RSSI: {:?}", props.rssi);
-                    println!();
+                if let Ok(Some(props)) = device.properties().await {
+                    let name = props
+                        .local_name
+                        .unwrap_or_else(|| "Unknown Device".to_string());
+                    device_info.push((name, device));
                 }
             }
+
+            let names = device_info
+                .iter()
+                .map(|(name, _)| name.clone())
+                .collect::<Vec<String>>();
+
+            let device = Select::new("Select the device you want to connect to!", names)
+                .prompt()
+                .unwrap();
         }
         Err(err) => {
             if let Some(err) = err.downcast_ref::<BleError>() {
