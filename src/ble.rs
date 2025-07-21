@@ -16,14 +16,9 @@ pub async fn scan_for_devices() -> Result<Vec<impl Peripheral>, Box<dyn std::err
 
     for adapter in adapters {
         adapter.start_scan(ScanFilter::default()).await?;
-
         time::sleep(Duration::from_secs(10)).await;
-
         let peripherals = adapter.peripherals().await?;
-
-        for peripheral in peripherals {
-            devices.push(peripheral);
-        }
+        devices.extend(peripherals);
     }
 
     if devices.is_empty() {
