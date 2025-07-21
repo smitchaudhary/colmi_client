@@ -1,5 +1,5 @@
 use crate::device::Device;
-use crate::errors::BleError;
+use crate::errors::ScanError;
 use btleplug::api::{Central, Manager as _, ScanFilter};
 use btleplug::platform::Manager;
 use std::time::Duration;
@@ -10,7 +10,7 @@ pub async fn scan_for_devices() -> Result<Vec<Device>, Box<dyn std::error::Error
     let adapters = manager.adapters().await?;
 
     if adapters.is_empty() {
-        return Err(Box::new(BleError::NoAdapters));
+        return Err(Box::new(ScanError::NoAdapters));
     }
 
     let mut devices: Vec<_> = Vec::new();
@@ -27,7 +27,7 @@ pub async fn scan_for_devices() -> Result<Vec<Device>, Box<dyn std::error::Error
     }
 
     if devices.is_empty() {
-        return Err(Box::new(BleError::NoDevices));
+        return Err(Box::new(ScanError::NoDevices));
     }
 
     Ok(devices)

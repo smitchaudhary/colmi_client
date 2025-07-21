@@ -3,6 +3,8 @@ const COLMI_MANUFACTURER_ID: u16 = 4660;
 use btleplug::{api::Peripheral, platform::Peripheral as PlatformPeripheral};
 use std::fmt::Display;
 
+use crate::errors::ConnectionError;
+
 #[derive(Clone)]
 pub struct Device {
     peripheral: PlatformPeripheral,
@@ -45,6 +47,13 @@ impl Device {
 
     pub fn is_colmi_device(&self) -> bool {
         self.is_colmi_device
+    }
+
+    pub async fn connect(&self) -> Result<(), ConnectionError> {
+        match self.peripheral.connect().await {
+            Ok(_) => Ok(()),
+            Err(_) => Err(ConnectionError::ConnectionFailed),
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::ble;
 use crate::config::save_device_to_config;
 use crate::device::Device;
-use crate::errors::BleError;
+use crate::errors::ScanError;
 use crate::tui;
 
 pub async fn scan(filter_colmi: bool) {
@@ -22,19 +22,25 @@ pub async fn connect(filter_colmi: bool) {
             println!("Found {} device(s):", &devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
-                save_device_to_config(selected_device);
+                match selected_device.connect().await {
+                    Ok(_) => {
+                        println!("Connected to device {}", selected_device);
+                        save_device_to_config(selected_device);
+                    }
+                    Err(err) => err.display(),
+                }
             }
         }
         Err(err) => err.display(!filter_colmi),
     }
 }
 
-async fn filter_devices(filter_colmi: bool) -> Result<Vec<Device>, BleError> {
+async fn filter_devices(filter_colmi: bool) -> Result<Vec<Device>, ScanError> {
     let devices = ble::scan_for_devices().await.map_err(|e| {
-        if let Some(error) = e.downcast_ref::<BleError>() {
+        if let Some(error) = e.downcast_ref::<ScanError>() {
             *error
         } else {
-            BleError::OperationFailed
+            ScanError::OperationFailed
         }
     })?;
 
@@ -48,7 +54,7 @@ async fn filter_devices(filter_colmi: bool) -> Result<Vec<Device>, BleError> {
     };
 
     if filtered_devices.is_empty() {
-        return Err(BleError::NoDevices);
+        return Err(ScanError::NoDevices);
     }
 
     Ok(filtered_devices)
