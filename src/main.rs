@@ -1,5 +1,6 @@
 mod ble;
 mod cli;
+mod config;
 mod device;
 mod errors;
 mod tui;

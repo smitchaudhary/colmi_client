@@ -1,11 +1,8 @@
-use btleplug::api::Peripheral;
+use crate::device::Device;
 use inquire::Select;
 
-pub fn select_device<P: Peripheral>(devices_info: &[(String, P)]) -> Option<usize> {
-    let display_names: Vec<String> = devices_info.iter().map(|(name, _)| name.clone()).collect();
-
-    Select::new("Choose the device to connect to:", display_names)
-        .raw_prompt()
+pub fn select_device(devices: Vec<Device>) -> Option<Device> {
+    Select::new("Choose the device to connect to:", devices)
+        .prompt()
         .ok()
-        .map(|result| result.index)
 }

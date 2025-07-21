@@ -1,15 +1,15 @@
 use crate::ble;
-use crate::device::colmi;
+use crate::config::save_device_address;
+use crate::device::Device;
 use crate::errors::BleError;
 use crate::tui;
-use btleplug::api::Peripheral;
 
 pub async fn scan(filter_colmi: bool) {
-    match scan_devices(filter_colmi).await {
-        Ok(devices_info) => {
-            println!("Found {} device(s):", devices_info.len());
-            for (i, (display_name, _)) in devices_info.iter().enumerate() {
-                println!("  {}. {}", i + 1, display_name);
+    match filter_devices(filter_colmi).await {
+        Ok(devices) => {
+            println!("Found {} device(s):", devices.len());
+            for (i, device) in devices.iter().enumerate() {
+                println!("  {}. {}", i + 1, device.display_name());
             }
         }
         Err(err) => err.display(!filter_colmi),
@@ -17,21 +17,19 @@ pub async fn scan(filter_colmi: bool) {
 }
 
 pub async fn connect(filter_colmi: bool) {
-    match scan_devices(filter_colmi).await {
-        Ok(devices_info) => {
-            println!("Found {} device(s):", devices_info.len());
+    match filter_devices(filter_colmi).await {
+        Ok(devices) => {
+            println!("Found {} device(s):", &devices.len());
 
-            if let Some(index) = tui::select_device(&devices_info) {
-                println!("The user has chosen device number: {}", index);
+            if let Some(selected_device) = tui::select_device(devices) {
+                save_device_address(selected_device);
             }
         }
         Err(err) => err.display(!filter_colmi),
     }
 }
 
-async fn scan_devices(
-    filter_colmi: bool,
-) -> Result<Vec<(String, impl btleplug::api::Peripheral)>, BleError> {
+async fn filter_devices(filter_colmi: bool) -> Result<Vec<Device>, BleError> {
     let devices = ble::scan_for_devices().await.map_err(|e| {
         if let Some(error) = e.downcast_ref::<BleError>() {
             *error
@@ -40,21 +38,18 @@ async fn scan_devices(
         }
     })?;
 
-    let mut device_info = Vec::new();
-    for device in devices {
-        if let Ok(Some(props)) = device.properties().await {
-            let is_colmi = colmi::is_colmi_device(&props.manufacturer_data);
-            if !filter_colmi || is_colmi {
-                let display_name =
-                    colmi::format_device_info(props.local_name, props.address.to_string());
-                device_info.push((display_name, device));
-            }
-        }
-    }
+    let filtered_devices = if filter_colmi {
+        devices
+            .into_iter()
+            .filter(|d| d.is_colmi_device())
+            .collect::<Vec<Device>>()
+    } else {
+        devices
+    };
 
-    if device_info.is_empty() {
+    if filtered_devices.is_empty() {
         return Err(BleError::NoDevices);
     }
 
-    Ok(device_info)
+    Ok(filtered_devices)
 }

@@ -1,0 +1,5 @@
+title = "Colmi Ring Config"
+
+[device_config]
+name = "iPad-DXPKPMYVMX"
+address = "00:00:00:00:00:00"

@@ -1,10 +1,11 @@
+use crate::device::Device;
 use crate::errors::BleError;
-use btleplug::api::{Central, Manager as _, Peripheral, ScanFilter};
+use btleplug::api::{Central, Manager as _, ScanFilter};
 use btleplug::platform::Manager;
 use std::time::Duration;
 use tokio::time;
 
-pub async fn scan_for_devices() -> Result<Vec<impl Peripheral>, Box<dyn std::error::Error>> {
+pub async fn scan_for_devices() -> Result<Vec<Device>, Box<dyn std::error::Error>> {
     let manager = Manager::new().await?;
     let adapters = manager.adapters().await?;
 
@@ -18,7 +19,11 @@ pub async fn scan_for_devices() -> Result<Vec<impl Peripheral>, Box<dyn std::err
         adapter.start_scan(ScanFilter::default()).await?;
         time::sleep(Duration::from_secs(10)).await;
         let peripherals = adapter.peripherals().await?;
-        devices.extend(peripherals);
+
+        for peripheral in peripherals {
+            let device = Device::new(peripheral).await;
+            devices.push(device);
+        }
     }
 
     if devices.is_empty() {
