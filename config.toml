@@ -2,4 +2,4 @@ title = "Config for Colmi Client"
 
 [device_config]
 name = "R02_8B00"
-address = "00:00:00:00:00:00"
+address = "b82e1012-11b6-5639-aba5-24525e239b6e"

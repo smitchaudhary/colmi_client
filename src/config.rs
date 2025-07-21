@@ -21,7 +21,7 @@ pub fn save_device_to_config(device: Device) {
         title: "Config for Colmi Client".to_string(),
         device_config: DeviceConfig {
             name: Some(device.name().to_string()),
-            address: Some(device.address().to_string()),
+            address: Some(device.id().to_string()),
         },
     };
 

@@ -7,7 +7,7 @@ use std::fmt::Display;
 pub struct Device {
     peripheral: PlatformPeripheral,
     name: String,
-    address: String,
+    id: String,
     is_colmi_device: bool,
 }
 
@@ -20,27 +20,27 @@ impl Device {
             .expect("Failed to retrieve device properties");
 
         let name = props.local_name.unwrap_or("Unknown Device".to_string());
-        let address = props.address.to_string();
+        let id = peripheral.id().to_string();
         let is_colmi_device = props.manufacturer_data.contains_key(&COLMI_MANUFACTURER_ID);
 
         Self {
             peripheral,
             name,
-            address,
+            id,
             is_colmi_device,
         }
     }
 
     pub fn display_name(&self) -> String {
-        format!("{}, ({})", self.name, self.address)
+        format!("{}, ({})", self.name, self.id)
     }
 
     pub fn name(&self) -> &str {
         &self.name
     }
 
-    pub fn address(&self) -> &str {
-        &self.address
+    pub fn id(&self) -> &str {
+        &self.id
     }
 
     pub fn is_colmi_device(&self) -> bool {
