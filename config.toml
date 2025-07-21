@@ -1,5 +1,5 @@
-title = "Colmi Ring Config"
+title = "Config for Colmi Client"
 
 [device_config]
-name = "iPad-DXPKPMYVMX"
+name = "R02_8B00"
 address = "00:00:00:00:00:00"

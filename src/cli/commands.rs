@@ -1,5 +1,5 @@
 use crate::ble;
-use crate::config::save_device_address;
+use crate::config::save_device_to_config;
 use crate::device::Device;
 use crate::errors::BleError;
 use crate::tui;
@@ -22,7 +22,7 @@ pub async fn connect(filter_colmi: bool) {
             println!("Found {} device(s):", &devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
-                save_device_address(selected_device);
+                save_device_to_config(selected_device);
             }
         }
         Err(err) => err.display(!filter_colmi),

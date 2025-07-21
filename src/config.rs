@@ -16,7 +16,7 @@ pub struct DeviceConfig {
     address: Option<String>,
 }
 
-pub fn save_device_address(device: Device) {
+pub fn save_device_to_config(device: Device) {
     let config = Config {
         title: "Config for Colmi Client".to_string(),
         device_config: DeviceConfig {
