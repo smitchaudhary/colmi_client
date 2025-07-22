@@ -20,4 +20,5 @@ pub enum Commands {
         #[arg(long)]
         all: bool,
     },
+    Battery,
 }

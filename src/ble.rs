@@ -5,6 +5,8 @@ use btleplug::platform::Manager;
 use std::time::Duration;
 use tokio::time;
 
+pub mod battery;
+
 pub async fn scan_for_devices() -> Result<Vec<Device>, Box<dyn std::error::Error>> {
     let manager = Manager::new().await?;
     let adapters = manager.adapters().await?;

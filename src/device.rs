@@ -1,8 +1,14 @@
 const COLMI_MANUFACTURER_ID: u16 = 4660;
 
-use btleplug::{api::Peripheral, platform::Peripheral as PlatformPeripheral};
+use btleplug::{
+    api::{Characteristic, Peripheral, WriteType},
+    platform::Peripheral as PlatformPeripheral,
+};
 use std::fmt::Display;
 
+use crate::ble::battery::{
+    BatteryRequest, BatteryResponse, NOTIFY_CHARACTERISTICS, SERVICE_UUID, WRITE_CHARACTERISTICS,
+};
 use crate::errors::ConnectionError;
 
 #[derive(Clone)]
@@ -11,6 +17,8 @@ pub struct Device {
     name: String,
     id: String,
     is_colmi_device: bool,
+    write_characteristics: Option<Characteristic>,
+    notify_characteristics: Option<Characteristic>,
 }
 
 impl Device {
@@ -30,6 +38,8 @@ impl Device {
             name,
             id,
             is_colmi_device,
+            write_characteristics: None,
+            notify_characteristics: None,
         }
     }
 
@@ -53,24 +63,65 @@ impl Device {
         self.is_colmi_device
     }
 
-    pub async fn connect(&self) -> Result<(), ConnectionError> {
+    fn get_write_characteristics(&self) -> &Characteristic {
+        &self.write_characteristics.as_ref().unwrap()
+    }
+
+    fn get_notify_characteristics(&self) -> &Characteristic {
+        &self.notify_characteristics.as_ref().unwrap()
+    }
+
+    pub async fn connect(&mut self) -> Result<(), ConnectionError> {
         match self.peripheral.connect().await {
             Ok(_) => {
-                let services = self.peripheral.services();
-                for service in services {
-                    println!("{}", service.uuid);
+                for service in self.peripheral.services() {
+                    if service.uuid.to_string() != SERVICE_UUID {
+                        continue;
+                    }
 
                     for char in service.characteristics {
-                        println!(
-                            "Characteristics: {} - Properties: {:?}",
-                            char.uuid, char.properties
-                        )
+                        if char.uuid.to_string() == NOTIFY_CHARACTERISTICS {
+                            self.notify_characteristics = Some(char);
+                        } else if char.uuid.to_string() == WRITE_CHARACTERISTICS {
+                            self.write_characteristics = Some(char);
+                        }
                     }
                 }
-                Ok(())
+                if self.notify_characteristics.is_none() || self.write_characteristics.is_none() {
+                    Err(ConnectionError::CharacteristicsNotFound)
+                } else {
+                    Ok(())
+                }
             }
             Err(_) => Err(ConnectionError::ConnectionFailed),
         }
+    }
+
+    pub async fn write(&self, request: BatteryRequest) {
+        self.peripheral
+            .write(
+                self.get_write_characteristics(),
+                &request.as_bytes(),
+                WriteType::WithoutResponse,
+            )
+            .await
+            .unwrap();
+    }
+
+    pub async fn read(&self) -> BatteryResponse {
+        let result = self
+            .peripheral
+            .read(self.get_notify_characteristics())
+            .await
+            .unwrap();
+        BatteryResponse::from_bytes(result)
+    }
+
+    pub async fn subscribe(&self) {
+        self.peripheral
+            .subscribe(self.get_notify_characteristics())
+            .await
+            .unwrap();
     }
 }
 

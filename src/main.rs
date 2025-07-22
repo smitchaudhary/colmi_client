@@ -15,5 +15,6 @@ async fn main() {
     match cli.command {
         Commands::Scan { all } => cli::commands::scan(!all).await,
         Commands::Connect { all } => cli::commands::connect(!all).await,
+        Commands::Battery => cli::commands::battery().await,
     }
 }

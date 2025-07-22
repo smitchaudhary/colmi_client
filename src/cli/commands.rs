@@ -1,4 +1,5 @@
 use crate::ble;
+use crate::ble::battery::BatteryRequest;
 use crate::config::save_device_to_config;
 use crate::device::Device;
 use crate::errors::ScanError;
@@ -21,7 +22,7 @@ pub async fn connect(filter_colmi: bool) {
         Ok(devices) => {
             println!("Found {} device(s):", &devices.len());
 
-            if let Some(selected_device) = tui::select_device(devices) {
+            if let Some(mut selected_device) = tui::select_device(devices) {
                 match selected_device.connect().await {
                     Ok(_) => {
                         println!("Connected to device {}", selected_device);
@@ -32,6 +33,27 @@ pub async fn connect(filter_colmi: bool) {
             }
         }
         Err(err) => err.display(!filter_colmi),
+    }
+}
+
+pub async fn battery() {
+    match filter_devices(true).await {
+        Ok(devices) => {
+            println!("Found {} device(s):", &devices.len());
+
+            if let Some(mut selected_device) = tui::select_device(devices) {
+                match selected_device.connect().await {
+                    Ok(_) => {
+                        println!("Connected to device {}", selected_device);
+                        selected_device.subscribe().await;
+                        selected_device.write(BatteryRequest::new()).await;
+                        println!("{}", selected_device.read().await);
+                    }
+                    Err(err) => err.display(),
+                }
+            }
+        }
+        Err(err) => err.display(true),
     }
 }
 

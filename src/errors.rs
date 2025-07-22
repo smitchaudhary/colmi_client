@@ -39,12 +39,18 @@ impl ScanError {
 pub enum ConnectionError {
     #[error("Connection failed!")]
     ConnectionFailed,
+
+    #[error("Characteristics not found")]
+    CharacteristicsNotFound,
 }
 
 impl ConnectionError {
     pub fn display(&self) {
         match self {
             ConnectionError::ConnectionFailed => println!("Connection to selected device failed!"),
+            ConnectionError::CharacteristicsNotFound => {
+                println!("Characteristics not found on selected device!")
+            }
         }
     }
 }
