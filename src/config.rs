@@ -2,7 +2,7 @@ use std::fs;
 
 use serde::{Deserialize, Serialize};
 
-use crate::device::Device;
+use crate::devices::models::Device;
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct Config {

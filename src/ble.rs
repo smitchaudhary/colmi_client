@@ -1,11 +1,9 @@
-use crate::device::Device;
+use crate::devices::models::Device;
 use crate::errors::ScanError;
 use btleplug::api::{Central, Manager as _, ScanFilter};
 use btleplug::platform::Manager;
 use std::time::Duration;
 use tokio::time;
-
-pub mod battery;
 
 pub async fn scan_for_devices() -> Result<Vec<Device>, Box<dyn std::error::Error>> {
     let manager = Manager::new().await?;

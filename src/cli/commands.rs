@@ -1,8 +1,9 @@
 use crate::ble;
-use crate::ble::battery::BatteryRequest;
 use crate::config::save_device_to_config;
-use crate::device::Device;
+use crate::devices::manager::DeviceManager;
+use crate::devices::models::Device;
 use crate::errors::ScanError;
+use crate::protocol::battery::BatteryRequest;
 use crate::tui;
 
 pub async fn scan(filter_colmi: bool) {
@@ -22,14 +23,18 @@ pub async fn connect(filter_colmi: bool) {
         Ok(devices) => {
             println!("Found {} device(s):", &devices.len());
 
-            if let Some(mut selected_device) = tui::select_device(devices) {
-                match selected_device.connect().await {
-                    Ok(_) => {
-                        println!("Connected to device {}", selected_device);
-                        save_device_to_config(selected_device);
+            if let Some(selected_device) = tui::select_device(devices) {
+                let (write_char, notify_char) = match DeviceManager::connect(&selected_device).await
+                {
+                    Ok(chars) => chars,
+                    Err(err) => {
+                        err.display();
+                        return;
                     }
-                    Err(err) => err.display(),
-                }
+                };
+
+                println!("Connected to device {}", selected_device);
+                save_device_to_config(selected_device);
             }
         }
         Err(err) => err.display(!filter_colmi),
@@ -41,16 +46,36 @@ pub async fn battery() {
         Ok(devices) => {
             println!("Found {} device(s):", &devices.len());
 
-            if let Some(mut selected_device) = tui::select_device(devices) {
-                match selected_device.connect().await {
-                    Ok(_) => {
-                        println!("Connected to device {}", selected_device);
-                        selected_device.subscribe().await;
-                        selected_device.write(BatteryRequest::new()).await;
-                        println!("{}", selected_device.read().await);
+            if let Some(selected_device) = tui::select_device(devices) {
+                let (write_char, notify_char) = match DeviceManager::connect(&selected_device).await
+                {
+                    Ok(chars) => chars,
+                    Err(err) => {
+                        err.display();
+                        return;
                     }
-                    Err(err) => err.display(),
-                }
+                };
+
+                let write_char = write_char.expect("Write characteristic not found");
+                let notify_char = notify_char.expect("Notify characteristic not found");
+
+                println!("Connected to device {}", selected_device);
+
+                let peripheral = selected_device.peripheral();
+
+                DeviceManager::subscribe_to_notifications(&peripheral, &notify_char).await;
+
+                DeviceManager::write_battery_request(
+                    &peripheral,
+                    &write_char,
+                    BatteryRequest::new(),
+                )
+                .await;
+
+                let response =
+                    DeviceManager::read_battery_response(&peripheral, &notify_char).await;
+
+                println!("{}", response);
             }
         }
         Err(err) => err.display(true),
@@ -58,13 +83,9 @@ pub async fn battery() {
 }
 
 async fn filter_devices(filter_colmi: bool) -> Result<Vec<Device>, ScanError> {
-    let devices = ble::scan_for_devices().await.map_err(|e| {
-        if let Some(error) = e.downcast_ref::<ScanError>() {
-            *error
-        } else {
-            ScanError::OperationFailed
-        }
-    })?;
+    let devices = ble::scan_for_devices()
+        .await
+        .map_err(|_| ScanError::OperationFailed)?;
 
     let filtered_devices = if filter_colmi {
         devices

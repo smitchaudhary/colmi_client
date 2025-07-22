@@ -1,8 +1,9 @@
 mod ble;
 mod cli;
 mod config;
-mod device;
+mod devices;
 mod errors;
+mod protocol;
 mod tui;
 
 use clap::Parser;

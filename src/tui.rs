@@ -1,4 +1,4 @@
-use crate::device::Device;
+use crate::devices::models::Device;
 use inquire::Select;
 
 pub fn select_device(devices: Vec<Device>) -> Option<Device> {
