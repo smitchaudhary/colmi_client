@@ -1,8 +1,8 @@
-use crate::ble;
-use crate::config::save_device_to_config;
+use crate::bluetooth::scanner;
+use crate::config::manager::save_device_to_config;
 use crate::devices::manager::DeviceManager;
 use crate::devices::models::Device;
-use crate::errors::ScanError;
+use crate::error::ScanError;
 use crate::protocol::battery::BatteryRequest;
 use crate::tui;
 
@@ -83,7 +83,7 @@ pub async fn battery() {
 }
 
 async fn filter_devices(filter_colmi: bool) -> Result<Vec<Device>, ScanError> {
-    let devices = ble::scan_for_devices()
+    let devices = scanner::scan_for_devices()
         .await
         .map_err(|_| ScanError::OperationFailed)?;
 

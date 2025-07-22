@@ -4,7 +4,7 @@ use btleplug::{
 };
 
 use crate::devices::models::Device;
-use crate::errors::ConnectionError;
+use crate::error::ConnectionError;
 use crate::protocol::battery::{
     BatteryRequest, BatteryResponse, NOTIFY_CHARACTERISTICS, SERVICE_UUID, WRITE_CHARACTERISTICS,
 };

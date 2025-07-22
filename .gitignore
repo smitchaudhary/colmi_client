@@ -1,3 +1,8 @@
 /target
 
-/tmp
+# All markdown files, unless specified otherwise
+*.md
+*.MD
+
+# .DS_Store
+*.DS_Store

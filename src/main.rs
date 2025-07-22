@@ -1,8 +1,8 @@
-mod ble;
+mod bluetooth;
 mod cli;
 mod config;
 mod devices;
-mod errors;
+mod error;
 mod protocol;
 mod tui;
 

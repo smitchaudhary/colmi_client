@@ -1,5 +1,5 @@
 use crate::devices::models::Device;
-use crate::errors::ScanError;
+use crate::error::ScanError;
 use btleplug::api::{Central, Manager as _, ScanFilter};
 use btleplug::platform::Manager;
 use std::time::Duration;
