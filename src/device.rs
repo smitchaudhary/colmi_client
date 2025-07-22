@@ -37,6 +37,10 @@ impl Device {
         format!("{}, ({})", self.name, self.id)
     }
 
+    pub fn peripheral(self) -> PlatformPeripheral {
+        self.peripheral
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -51,7 +55,20 @@ impl Device {
 
     pub async fn connect(&self) -> Result<(), ConnectionError> {
         match self.peripheral.connect().await {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                let services = self.peripheral.services();
+                for service in services {
+                    println!("{}", service.uuid);
+
+                    for char in service.characteristics {
+                        println!(
+                            "Characteristics: {} - Properties: {:?}",
+                            char.uuid, char.properties
+                        )
+                    }
+                }
+                Ok(())
+            }
             Err(_) => Err(ConnectionError::ConnectionFailed),
         }
     }
