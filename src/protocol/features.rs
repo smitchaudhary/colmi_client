@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+use serde::{Deserialize, Serialize};
 
 use crate::protocol::{Request, Response};
 
@@ -8,6 +9,7 @@ pub struct FeatureRequest {
     pub crc: u8,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FeatureResponse {
     pub command_id: u8,
     pub supports_temperature: bool,

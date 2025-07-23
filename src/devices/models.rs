@@ -36,8 +36,8 @@ impl Device {
         format!("{}, ({})", self.name, self.id)
     }
 
-    pub fn peripheral(self) -> PlatformPeripheral {
-        self.peripheral
+    pub fn peripheral(&self) -> &PlatformPeripheral {
+        &self.peripheral
     }
 
     pub fn name(&self) -> &str {

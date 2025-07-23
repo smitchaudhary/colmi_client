@@ -34,11 +34,24 @@ pub async fn connect(filter_colmi: bool) {
                     }
                 };
 
+                let write_char = write_char.expect("Write characteristic not found");
+                let notify_char = notify_char.expect("Notify characteristic not found");
+
                 println!("Connected to device {}", selected_device);
-                save_device_to_config(selected_device);
+
+                let peripheral = selected_device.peripheral();
+
+                DeviceManager::subscribe_to_notifications(&peripheral, &notify_char).await;
+
+                DeviceManager::write_request(&peripheral, &write_char, FeatureRequest::new()).await;
+
+                let features: FeatureResponse =
+                    DeviceManager::read_response(&peripheral, &notify_char).await;
+
+                save_device_to_config(selected_device, features);
             }
         }
-        Err(err) => err.display(!filter_colmi),
+        Err(err) => err.display(filter_colmi),
     }
 }
 
@@ -69,42 +82,6 @@ pub async fn battery() {
                 DeviceManager::write_request(&peripheral, &write_char, BatteryRequest::new()).await;
 
                 let response: BatteryResponse =
-                    DeviceManager::read_response(&peripheral, &notify_char).await;
-
-                println!("{}", response);
-            }
-        }
-        Err(err) => err.display(true),
-    }
-}
-
-pub async fn features() {
-    match filter_devices(true).await {
-        Ok(devices) => {
-            println!("Found {} device(s):", &devices.len());
-
-            if let Some(selected_device) = tui::select_device(devices) {
-                let (write_char, notify_char) = match DeviceManager::connect(&selected_device).await
-                {
-                    Ok(chars) => chars,
-                    Err(err) => {
-                        err.display();
-                        return;
-                    }
-                };
-
-                let write_char = write_char.expect("Write characteristic not found");
-                let notify_char = notify_char.expect("Notify characteristic not found");
-
-                println!("Connected to device {}", selected_device);
-
-                let peripheral = selected_device.peripheral();
-
-                DeviceManager::subscribe_to_notifications(&peripheral, &notify_char).await;
-
-                DeviceManager::write_request(&peripheral, &write_char, FeatureRequest::new()).await;
-
-                let response: FeatureResponse =
                     DeviceManager::read_response(&peripheral, &notify_char).await;
 
                 println!("{}", response);
