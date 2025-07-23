@@ -1,3 +1,5 @@
+use crate::error::ProtocolError;
+
 pub mod battery;
 pub mod features;
 
@@ -14,10 +16,22 @@ pub trait Request {
 }
 
 pub trait Response {
-    fn from_bytes(bytes: Vec<u8>) -> Self;
+    fn from_bytes(bytes: Vec<u8>) -> Result<Self, ProtocolError>
+    where
+        Self: Sized;
 
-    fn verify_checksum(bytes: &[u8]) -> bool {
-        bytes.len() == 16 && bytes[15] == calculate_checksum(&bytes[..15])
+    fn verify_checksum(bytes: &[u8]) -> Result<(), ProtocolError> {
+        if bytes.len() != 16 {
+            return Err(ProtocolError::InvalidPacketLength);
+        }
+        let calculated = calculate_checksum(&bytes[..15]);
+        let actual = bytes[15];
+
+        if calculated != actual {
+            return Err(ProtocolError::InvalidChecksum { calculated, actual });
+        }
+
+        Ok(())
     }
 }
 

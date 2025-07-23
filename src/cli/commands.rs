@@ -45,10 +45,12 @@ pub async fn connect(filter_colmi: bool) {
 
                 DeviceManager::write_request(&peripheral, &write_char, FeatureRequest::new()).await;
 
-                let features: FeatureResponse =
-                    DeviceManager::read_response(&peripheral, &notify_char).await;
-
-                save_device_to_config(selected_device, features);
+                match DeviceManager::read_response::<FeatureResponse>(&peripheral, &notify_char)
+                    .await
+                {
+                    Ok(features) => save_device_to_config(selected_device, features),
+                    Err(err) => err.display(),
+                }
             }
         }
         Err(err) => err.display(filter_colmi),
@@ -81,10 +83,12 @@ pub async fn battery() {
 
                 DeviceManager::write_request(&peripheral, &write_char, BatteryRequest::new()).await;
 
-                let response: BatteryResponse =
-                    DeviceManager::read_response(&peripheral, &notify_char).await;
-
-                println!("{}", response);
+                match DeviceManager::read_response::<BatteryResponse>(&peripheral, &notify_char)
+                    .await
+                {
+                    Ok(response) => println!("{}", response),
+                    Err(err) => err.display(),
+                }
             }
         }
         Err(err) => err.display(true),

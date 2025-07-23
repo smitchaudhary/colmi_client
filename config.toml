@@ -38,4 +38,4 @@ supports_4g = false
 supports_nav_picture = false
 supports_pressure = false
 supports_hrv = false
-crc = 35
+checksum = 35

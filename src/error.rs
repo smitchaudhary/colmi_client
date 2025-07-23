@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-#[derive(Copy, Clone, Error, Debug)]
+#[derive(Error, Debug)]
 pub enum ScanError {
     #[error("No Bluetooth adapters found!")]
     NoAdapters,
@@ -35,7 +35,7 @@ impl ScanError {
     }
 }
 
-#[derive(Copy, Clone, Error, Debug)]
+#[derive(Error, Debug)]
 pub enum ConnectionError {
     #[error("Connection failed!")]
     ConnectionFailed,
@@ -50,6 +50,31 @@ impl ConnectionError {
             ConnectionError::ConnectionFailed => println!("Connection to selected device failed!"),
             ConnectionError::CharacteristicsNotFound => {
                 println!("Characteristics not found on selected device!")
+            }
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum ProtocolError {
+    #[error("Invalid checksum. Calculated: {}, Actual: {}", calculated, actual)]
+    InvalidChecksum { calculated: u8, actual: u8 },
+
+    #[error("Invalid packet length")]
+    InvalidPacketLength,
+}
+
+impl ProtocolError {
+    pub fn display(&self) {
+        match self {
+            ProtocolError::InvalidChecksum { calculated, actual } => {
+                println!(
+                    "Invalid checksum. Calculated: {}, Actual: {}",
+                    calculated, actual
+                );
+            }
+            ProtocolError::InvalidPacketLength => {
+                println!("Invalid packet length");
             }
         }
     }

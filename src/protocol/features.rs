@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
 
-use crate::protocol::{Request, Response};
+use crate::{
+    error::ProtocolError,
+    protocol::{Request, Response},
+};
 
 pub struct FeatureRequest {
     pub command_id: u8,
@@ -72,11 +74,10 @@ impl Request for FeatureRequest {
 }
 
 impl Response for FeatureResponse {
-    fn from_bytes(bytes: Vec<u8>) -> Self {
-        if !Self::verify_checksum(&bytes) {
-            panic!("Invalid checksum");
-        }
-        Self {
+    fn from_bytes(bytes: Vec<u8>) -> Result<Self, ProtocolError> {
+        Self::verify_checksum(&bytes)?;
+
+        Ok(Self {
             command_id: bytes[0],
             supports_temperature: bytes[1] != 0,
             supports_plate: bytes[2] != 0,
@@ -111,19 +112,6 @@ impl Response for FeatureResponse {
             supports_pressure: (bytes[14] & 1 << 4) != 0,
             supports_hrv: (bytes[14] & 1 << 5) != 0,
             checksum: bytes[15],
-        }
-    }
-}
-
-impl Display for FeatureResponse {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let response = {
-            if self.supports_hrv {
-                "Supports HRV"
-            } else {
-                "Does not support HRV"
-            }
-        };
-        write!(f, "{}", response)
+        })
     }
 }

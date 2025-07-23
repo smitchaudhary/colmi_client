@@ -1,6 +1,9 @@
 use std::fmt::{Display, Formatter};
 
-use crate::protocol::{Request, Response};
+use crate::{
+    error::ProtocolError,
+    protocol::{Request, Response},
+};
 
 pub struct BatteryRequest {
     pub command_id: u8,
@@ -41,17 +44,16 @@ impl Request for BatteryRequest {
 }
 
 impl Response for BatteryResponse {
-    fn from_bytes(bytes: Vec<u8>) -> Self {
-        if !Self::verify_checksum(&bytes) {
-            panic!("Invalid checksum");
-        }
-
-        Self {
-            command_id: bytes[0],
-            charge_pct: bytes[1],
-            is_charging: bytes[2] == 1,
-            padding: bytes[3..15].try_into().unwrap(),
-            checksum: bytes[15],
+    fn from_bytes(bytes: Vec<u8>) -> Result<Self, ProtocolError> {
+        match Self::verify_checksum(&bytes) {
+            Ok(_) => Ok(Self {
+                command_id: bytes[0],
+                charge_pct: bytes[1],
+                is_charging: bytes[2] == 1,
+                padding: bytes[3..15].try_into().unwrap(),
+                checksum: bytes[15],
+            }),
+            Err(err) => Err(err),
         }
     }
 }

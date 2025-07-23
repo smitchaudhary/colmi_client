@@ -56,7 +56,7 @@ impl DeviceManager {
     pub async fn read_response<R: Response>(
         device: &PlatformPeripheral,
         notify_char: &Characteristic,
-    ) -> R {
+    ) -> Result<R, crate::error::ProtocolError> {
         let result = device.read(notify_char).await.unwrap();
         R::from_bytes(result)
     }
