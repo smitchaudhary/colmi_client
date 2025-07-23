@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    error::ProtocolError,
-    protocol::{Request, Response},
-};
+use crate::error::ProtocolError;
+use crate::protocol::{Request, Response};
 
 pub struct FeatureRequest {
     pub command_id: u8,

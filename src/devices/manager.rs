@@ -3,9 +3,10 @@ use btleplug::{
     platform::Peripheral as PlatformPeripheral,
 };
 
+use crate::devices::models::Device;
+use crate::error::{ConnectionError, ProtocolError};
+use crate::protocol::{Request, Response};
 use crate::protocol::{NOTIFY_CHARACTERISTICS, SERVICE_UUID, WRITE_CHARACTERISTICS};
-use crate::{devices::models::Device, protocol::Request};
-use crate::{error::ConnectionError, protocol::Response};
 
 pub struct DeviceManager;
 
@@ -56,7 +57,7 @@ impl DeviceManager {
     pub async fn read_response<R: Response>(
         device: &PlatformPeripheral,
         notify_char: &Characteristic,
-    ) -> Result<R, crate::error::ProtocolError> {
+    ) -> Result<R, ProtocolError> {
         let result = device.read(notify_char).await.unwrap();
         R::from_bytes(result)
     }

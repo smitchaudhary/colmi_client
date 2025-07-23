@@ -1,9 +1,7 @@
 use std::fmt::{Display, Formatter};
 
-use crate::{
-    error::ProtocolError,
-    protocol::{Request, Response},
-};
+use crate::error::ProtocolError;
+use crate::protocol::{Request, Response};
 
 pub struct BatteryRequest {
     pub command_id: u8,
