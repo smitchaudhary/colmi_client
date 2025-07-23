@@ -3,11 +3,9 @@ use btleplug::{
     platform::Peripheral as PlatformPeripheral,
 };
 
-use crate::devices::models::Device;
-use crate::error::ConnectionError;
-use crate::protocol::battery::{
-    BatteryRequest, BatteryResponse, NOTIFY_CHARACTERISTICS, SERVICE_UUID, WRITE_CHARACTERISTICS,
-};
+use crate::protocol::{NOTIFY_CHARACTERISTICS, SERVICE_UUID, WRITE_CHARACTERISTICS};
+use crate::{devices::models::Device, protocol::Request};
+use crate::{error::ConnectionError, protocol::Response};
 
 pub struct DeviceManager;
 
@@ -44,10 +42,10 @@ impl DeviceManager {
         }
     }
 
-    pub async fn write_battery_request(
+    pub async fn write_request(
         device: &PlatformPeripheral,
         write_char: &Characteristic,
-        request: BatteryRequest,
+        request: impl Request,
     ) {
         device
             .write(write_char, &request.as_bytes(), WriteType::WithoutResponse)
@@ -55,12 +53,12 @@ impl DeviceManager {
             .unwrap();
     }
 
-    pub async fn read_battery_response(
+    pub async fn read_response<R: Response>(
         device: &PlatformPeripheral,
         notify_char: &Characteristic,
-    ) -> BatteryResponse {
+    ) -> R {
         let result = device.read(notify_char).await.unwrap();
-        BatteryResponse::from_bytes(result)
+        R::from_bytes(result)
     }
 
     pub async fn subscribe_to_notifications(

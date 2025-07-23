@@ -1,8 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-pub const SERVICE_UUID: &str = "6e40fff0-b5a3-f393-e0a9-e50e24dcca9e";
-pub const WRITE_CHARACTERISTICS: &str = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-pub const NOTIFY_CHARACTERISTICS: &str = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+use crate::protocol::{Request, Response};
 
 pub struct BatteryRequest {
     pub command_id: u8,
@@ -26,8 +24,10 @@ impl BatteryRequest {
             crc: 3,
         }
     }
+}
 
-    pub fn as_bytes(&self) -> [u8; 16] {
+impl Request for BatteryRequest {
+    fn as_bytes(&self) -> [u8; 16] {
         let mut bytes: [u8; 16] = [0; 16];
         bytes[0] = self.command_id;
         bytes[1..15].copy_from_slice(&self.padding);
@@ -37,8 +37,8 @@ impl BatteryRequest {
     }
 }
 
-impl BatteryResponse {
-    pub fn from_bytes(bytes: Vec<u8>) -> Self {
+impl Response for BatteryResponse {
+    fn from_bytes(bytes: Vec<u8>) -> Self {
         let command_id = bytes[0];
         let charge_pct = bytes[1];
         let is_charging = bytes[2] == 1;

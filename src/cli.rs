@@ -21,4 +21,5 @@ pub enum Commands {
         all: bool,
     },
     Battery,
+    Features,
 }

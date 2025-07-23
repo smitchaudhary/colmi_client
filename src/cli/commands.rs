@@ -3,7 +3,8 @@ use crate::config::manager::save_device_to_config;
 use crate::devices::manager::DeviceManager;
 use crate::devices::models::Device;
 use crate::error::ScanError;
-use crate::protocol::battery::BatteryRequest;
+use crate::protocol::battery::{BatteryRequest, BatteryResponse};
+use crate::protocol::features::{FeatureRequest, FeatureResponse};
 use crate::tui;
 
 pub async fn scan(filter_colmi: bool) {
@@ -65,15 +66,46 @@ pub async fn battery() {
 
                 DeviceManager::subscribe_to_notifications(&peripheral, &notify_char).await;
 
-                DeviceManager::write_battery_request(
-                    &peripheral,
-                    &write_char,
-                    BatteryRequest::new(),
-                )
-                .await;
+                DeviceManager::write_request(&peripheral, &write_char, BatteryRequest::new()).await;
 
-                let response =
-                    DeviceManager::read_battery_response(&peripheral, &notify_char).await;
+                let response: BatteryResponse =
+                    DeviceManager::read_response(&peripheral, &notify_char).await;
+
+                println!("{}", response);
+            }
+        }
+        Err(err) => err.display(true),
+    }
+}
+
+pub async fn features() {
+    match filter_devices(true).await {
+        Ok(devices) => {
+            println!("Found {} device(s):", &devices.len());
+
+            if let Some(selected_device) = tui::select_device(devices) {
+                let (write_char, notify_char) = match DeviceManager::connect(&selected_device).await
+                {
+                    Ok(chars) => chars,
+                    Err(err) => {
+                        err.display();
+                        return;
+                    }
+                };
+
+                let write_char = write_char.expect("Write characteristic not found");
+                let notify_char = notify_char.expect("Notify characteristic not found");
+
+                println!("Connected to device {}", selected_device);
+
+                let peripheral = selected_device.peripheral();
+
+                DeviceManager::subscribe_to_notifications(&peripheral, &notify_char).await;
+
+                DeviceManager::write_request(&peripheral, &write_char, FeatureRequest::new()).await;
+
+                let response: FeatureResponse =
+                    DeviceManager::read_response(&peripheral, &notify_char).await;
 
                 println!("{}", response);
             }
