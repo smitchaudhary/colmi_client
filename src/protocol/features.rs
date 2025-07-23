@@ -1,12 +1,12 @@
-use std::fmt::{Display, Formatter};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 use crate::protocol::{Request, Response};
 
 pub struct FeatureRequest {
     pub command_id: u8,
     pub padding: [u8; 14],
-    pub crc: u8,
+    pub checksum: u8,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -44,16 +44,19 @@ pub struct FeatureResponse {
     pub supports_nav_picture: bool,
     pub supports_pressure: bool,
     pub supports_hrv: bool,
-    pub crc: u8,
+    pub checksum: u8,
 }
 
 impl FeatureRequest {
     pub fn new() -> Self {
-        Self {
+        let mut req = Self {
             command_id: 1,
             padding: [0; 14],
-            crc: 1,
-        }
+            checksum: 1,
+        };
+
+        req.checksum = req.update_checksum();
+        req
     }
 }
 
@@ -62,7 +65,7 @@ impl Request for FeatureRequest {
         let mut bytes: [u8; 16] = [0; 16];
         bytes[0] = self.command_id;
         bytes[1..15].copy_from_slice(&self.padding);
-        bytes[15] = self.crc;
+        bytes[15] = self.checksum;
 
         bytes
     }
@@ -70,6 +73,9 @@ impl Request for FeatureRequest {
 
 impl Response for FeatureResponse {
     fn from_bytes(bytes: Vec<u8>) -> Self {
+        if !Self::verify_checksum(&bytes) {
+            panic!("Invalid checksum");
+        }
         Self {
             command_id: bytes[0],
             supports_temperature: bytes[1] != 0,
@@ -104,7 +110,7 @@ impl Response for FeatureResponse {
             supports_nav_picture: (bytes[14] & 1 << 3) != 0,
             supports_pressure: (bytes[14] & 1 << 4) != 0,
             supports_hrv: (bytes[14] & 1 << 5) != 0,
-            crc: bytes[15],
+            checksum: bytes[15],
         }
     }
 }
