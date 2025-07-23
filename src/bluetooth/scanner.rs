@@ -5,12 +5,12 @@ use btleplug::platform::Manager;
 use std::time::Duration;
 use tokio::time;
 
-pub async fn scan_for_devices() -> Result<Vec<Device>, Box<dyn std::error::Error>> {
+pub async fn scan_for_devices() -> Result<Vec<Device>, ScanError> {
     let manager = Manager::new().await?;
     let adapters = manager.adapters().await?;
 
     if adapters.is_empty() {
-        return Err(Box::new(ScanError::NoAdapters));
+        return Err(ScanError::NoAdapters);
     }
 
     let mut devices: Vec<_> = Vec::new();
@@ -27,7 +27,7 @@ pub async fn scan_for_devices() -> Result<Vec<Device>, Box<dyn std::error::Error
     }
 
     if devices.is_empty() {
-        return Err(Box::new(ScanError::NoDevices));
+        return Err(ScanError::NoDevices);
     }
 
     Ok(devices)

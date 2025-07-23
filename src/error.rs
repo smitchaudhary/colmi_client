@@ -11,8 +11,8 @@ pub enum ScanError {
     #[error("No Colmi devices found! Try `colmi_client scan --all` to see all devices.")]
     NoColmiDevices,
 
-    #[error("Scan operation failed!")]
-    OperationFailed,
+    #[error("Bluetooth operation failed: {0}")]
+    BluetoothOperationFailed(#[from] btleplug::Error),
 }
 
 #[derive(Error, Debug)]

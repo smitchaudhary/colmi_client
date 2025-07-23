@@ -130,9 +130,7 @@ pub async fn battery() {
 }
 
 async fn filter_devices(filter_colmi: bool) -> Result<Vec<Device>, ScanError> {
-    let devices = scanner::scan_for_devices()
-        .await
-        .map_err(|_| ScanError::OperationFailed)?;
+    let devices = scanner::scan_for_devices().await?;
 
     let filtered_devices = if filter_colmi {
         devices
