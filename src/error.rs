@@ -2,75 +2,35 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ScanError {
-    #[error("No Bluetooth adapters found!")]
+    #[error("No Bluetooth adapters found! Please ensure Bluetooth is turned on.")]
     NoAdapters,
 
-    #[error("No external devices found!")]
+    #[error("No Bluetooth devices found! Please ensure devices are turned on and in range.")]
     NoDevices,
 
-    #[error("Operation failed!")]
-    OperationFailed,
-}
+    #[error("No Colmi devices found! Try `colmi_client scan --all` to see all devices.")]
+    NoColmiDevices,
 
-impl ScanError {
-    pub fn display(&self, all: bool) {
-        match self {
-            ScanError::NoAdapters => {
-                println!("No Bluetooth adapters found!");
-                println!("Please ensure Bluetooth is turned on.");
-            }
-            ScanError::NoDevices => {
-                if !all {
-                    println!("No Colmi devices found!");
-                    println!("Try `colmi_client scan --all` to see all devices.");
-                } else {
-                    println!("No Bluetooth devices found!");
-                    println!("Please ensure devices are turned on and in range.");
-                }
-            }
-            ScanError::OperationFailed => {
-                println!("Scan operation failed!");
-            }
-        }
-    }
+    #[error("Scan operation failed!")]
+    OperationFailed,
 }
 
 #[derive(Error, Debug)]
 pub enum ConnectionError {
-    #[error("Connection failed!")]
+    #[error("Connection to selected device failed!")]
     ConnectionFailed,
 
-    #[error("Characteristics not found")]
+    #[error("No matching characteristics found on selected device!")]
     CharacteristicsNotFound,
 
-    #[error("Failed to write data")]
+    #[error("Failed to write data to selected device!")]
     WriteFailed,
 
-    #[error("Failed to read data")]
+    #[error("Failed to read data from selected device!")]
     ReadFailed,
 
-    #[error("Failed to subscribe to notifications")]
+    #[error("Failed to subscribe to notifications from selected device!")]
     SubscribeFailed,
-}
-
-impl ConnectionError {
-    pub fn display(&self) {
-        match self {
-            ConnectionError::ConnectionFailed => println!("Connection to selected device failed!"),
-            ConnectionError::CharacteristicsNotFound => {
-                println!("Characteristics not found on selected device!")
-            }
-            ConnectionError::WriteFailed => {
-                println!("Failed to write data to selected device!")
-            }
-            ConnectionError::ReadFailed => {
-                println!("Failed to read data from selected device!")
-            }
-            ConnectionError::SubscribeFailed => {
-                println!("Failed to subscribe to notifications from selected device!")
-            }
-        }
-    }
 }
 
 #[derive(Error, Debug)]
@@ -82,22 +42,6 @@ pub enum ProtocolError {
     InvalidPacketLength,
 }
 
-impl ProtocolError {
-    pub fn display(&self) {
-        match self {
-            ProtocolError::InvalidChecksum { calculated, actual } => {
-                println!(
-                    "Invalid checksum. Calculated: {}, Actual: {}",
-                    calculated, actual
-                );
-            }
-            ProtocolError::InvalidPacketLength => {
-                println!("Invalid packet length");
-            }
-        }
-    }
-}
-
 #[derive(Debug, Error)]
 pub enum DeviceError {
     #[error(transparent)]
@@ -105,13 +49,4 @@ pub enum DeviceError {
 
     #[error(transparent)]
     Protocol(#[from] ProtocolError),
-}
-
-impl DeviceError {
-    pub fn display(&self) {
-        match self {
-            DeviceError::Connection(err) => err.display(),
-            DeviceError::Protocol(err) => err.display(),
-        }
-    }
 }

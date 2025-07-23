@@ -15,7 +15,7 @@ pub async fn scan(filter_colmi: bool) {
                 println!("  {}. {}", i + 1, device.display_name());
             }
         }
-        Err(err) => err.display(!filter_colmi),
+        Err(err) => println!("{}", err),
     }
 }
 
@@ -29,7 +29,7 @@ pub async fn connect(filter_colmi: bool) {
                 {
                     Ok(chars) => chars,
                     Err(err) => {
-                        err.display();
+                        println!("{}", err);
                         return;
                     }
                 };
@@ -44,7 +44,7 @@ pub async fn connect(filter_colmi: bool) {
                 match DeviceManager::subscribe_to_notifications(&peripheral, &notify_char).await {
                     Ok(_) => (),
                     Err(err) => {
-                        err.display();
+                        println!("{}", err);
                         return;
                     }
                 }
@@ -54,7 +54,7 @@ pub async fn connect(filter_colmi: bool) {
                 {
                     Ok(_) => (),
                     Err(err) => {
-                        err.display();
+                        println!("{}", err);
                         return;
                     }
                 }
@@ -64,13 +64,13 @@ pub async fn connect(filter_colmi: bool) {
                 {
                     Ok(features) => save_device_to_config(selected_device, features),
                     Err(err) => {
-                        err.display();
+                        println!("{}", err);
                         return;
                     }
                 }
             }
         }
-        Err(err) => err.display(filter_colmi),
+        Err(err) => println!("{}", err),
     }
 }
 
@@ -84,7 +84,7 @@ pub async fn battery() {
                 {
                     Ok(chars) => chars,
                     Err(err) => {
-                        err.display();
+                        println!("{}", err);
                         return;
                     }
                 };
@@ -99,7 +99,7 @@ pub async fn battery() {
                 match DeviceManager::subscribe_to_notifications(&peripheral, &notify_char).await {
                     Ok(_) => (),
                     Err(err) => {
-                        err.display();
+                        println!("{}", err);
                         return;
                     }
                 }
@@ -109,7 +109,7 @@ pub async fn battery() {
                 {
                     Ok(_) => (),
                     Err(err) => {
-                        err.display();
+                        println!("{}", err);
                         return;
                     }
                 }
@@ -119,13 +119,13 @@ pub async fn battery() {
                 {
                     Ok(response) => println!("{}", response),
                     Err(err) => {
-                        err.display();
+                        println!("{}", err);
                         return;
                     }
                 }
             }
         }
-        Err(err) => err.display(true),
+        Err(err) => println!("{}", err),
     }
 }
 
@@ -144,7 +144,11 @@ async fn filter_devices(filter_colmi: bool) -> Result<Vec<Device>, ScanError> {
     };
 
     if filtered_devices.is_empty() {
-        return Err(ScanError::NoDevices);
+        return Err(if filter_colmi {
+            ScanError::NoColmiDevices
+        } else {
+            ScanError::NoDevices
+        });
     }
 
     Ok(filtered_devices)
