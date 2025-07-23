@@ -4,9 +4,10 @@ use btleplug::{
 };
 
 use crate::devices::models::Device;
-use crate::error::{ConnectionError, ProtocolError};
-use crate::protocol::{Request, Response};
-use crate::protocol::{NOTIFY_CHARACTERISTICS, SERVICE_UUID, WRITE_CHARACTERISTICS};
+use crate::error::{ConnectionError, DeviceError};
+use crate::protocol::{
+    NOTIFY_CHARACTERISTICS, Request, Response, SERVICE_UUID, WRITE_CHARACTERISTICS,
+};
 
 pub struct DeviceManager;
 
@@ -47,25 +48,34 @@ impl DeviceManager {
         device: &PlatformPeripheral,
         write_char: &Characteristic,
         request: impl Request,
-    ) {
+    ) -> Result<(), ConnectionError> {
         device
             .write(write_char, &request.as_bytes(), WriteType::WithoutResponse)
             .await
-            .unwrap();
+            .map_err(|_| ConnectionError::WriteFailed)?;
+        Ok(())
     }
 
     pub async fn read_response<R: Response>(
         device: &PlatformPeripheral,
         notify_char: &Characteristic,
-    ) -> Result<R, ProtocolError> {
-        let result = device.read(notify_char).await.unwrap();
-        R::from_bytes(result)
+    ) -> Result<R, DeviceError> {
+        let reading = device
+            .read(notify_char)
+            .await
+            .map_err(|_| ConnectionError::ReadFailed)?;
+        let result = R::from_bytes(reading)?;
+        Ok(result)
     }
 
     pub async fn subscribe_to_notifications(
         device: &PlatformPeripheral,
         notify_char: &Characteristic,
-    ) {
-        device.subscribe(notify_char).await.unwrap();
+    ) -> Result<(), ConnectionError> {
+        device
+            .subscribe(notify_char)
+            .await
+            .map_err(|_| ConnectionError::SubscribeFailed)?;
+        Ok(())
     }
 }

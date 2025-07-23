@@ -42,6 +42,15 @@ pub enum ConnectionError {
 
     #[error("Characteristics not found")]
     CharacteristicsNotFound,
+
+    #[error("Failed to write data")]
+    WriteFailed,
+
+    #[error("Failed to read data")]
+    ReadFailed,
+
+    #[error("Failed to subscribe to notifications")]
+    SubscribeFailed,
 }
 
 impl ConnectionError {
@@ -50,6 +59,15 @@ impl ConnectionError {
             ConnectionError::ConnectionFailed => println!("Connection to selected device failed!"),
             ConnectionError::CharacteristicsNotFound => {
                 println!("Characteristics not found on selected device!")
+            }
+            ConnectionError::WriteFailed => {
+                println!("Failed to write data to selected device!")
+            }
+            ConnectionError::ReadFailed => {
+                println!("Failed to read data from selected device!")
+            }
+            ConnectionError::SubscribeFailed => {
+                println!("Failed to subscribe to notifications from selected device!")
             }
         }
     }
@@ -76,6 +94,24 @@ impl ProtocolError {
             ProtocolError::InvalidPacketLength => {
                 println!("Invalid packet length");
             }
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum DeviceError {
+    #[error(transparent)]
+    Connection(#[from] ConnectionError),
+
+    #[error(transparent)]
+    Protocol(#[from] ProtocolError),
+}
+
+impl DeviceError {
+    pub fn display(&self) {
+        match self {
+            DeviceError::Connection(err) => err.display(),
+            DeviceError::Protocol(err) => err.display(),
         }
     }
 }
