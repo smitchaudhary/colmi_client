@@ -104,7 +104,7 @@ impl Response for FeatureResponse {
             supports_ebook: (bytes[12] & 1 << 6) != 0,
             supports_blood_sugar: (bytes[12] & 1 << 7) != 0,
             max_contacts: { if bytes[13] == 0 { 20 } else { bytes[13] * 10 } } as u16,
-            supports_blood_pressure_settings: (bytes[14] & 1 << 0) != 1,
+            supports_blood_pressure_settings: (bytes[14] & 1 << 0) != 0,
             supports_4g: (bytes[14] & 1 << 2) != 0,
             supports_nav_picture: (bytes[14] & 1 << 3) != 0,
             supports_pressure: (bytes[14] & 1 << 4) != 0,
