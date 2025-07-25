@@ -1,11 +1,17 @@
-use serde::{Deserialize, Serialize};
-
 use crate::error::ProtocolError;
 use crate::protocol::{Request, Response};
+use chrono::{Datelike, Local, Timelike};
+use serde::{Deserialize, Serialize};
 
 pub struct FeatureRequest {
     pub command_id: u8,
-    pub padding: [u8; 14],
+    pub year: u8,
+    pub month: u8,
+    pub day_of_month: u8,
+    pub hour: u8,
+    pub minute: u8,
+    pub seconds: u8,
+    pub padding: [u8; 8],
     pub checksum: u8,
 }
 
@@ -49,9 +55,17 @@ pub struct FeatureResponse {
 
 impl FeatureRequest {
     pub fn new() -> Self {
+        let now = Local::now();
+
         let mut req = Self {
             command_id: 1,
-            padding: [0; 14],
+            year: (now.year() % 2000) as u8,
+            month: now.month() as u8,
+            day_of_month: now.day() as u8,
+            hour: now.hour() as u8,
+            minute: now.minute() as u8,
+            seconds: now.second() as u8,
+            padding: [0; 8],
             checksum: 1,
         };
 
@@ -64,7 +78,13 @@ impl Request for FeatureRequest {
     fn as_bytes(&self) -> [u8; 16] {
         let mut bytes: [u8; 16] = [0; 16];
         bytes[0] = self.command_id;
-        bytes[1..15].copy_from_slice(&self.padding);
+        bytes[1] = self.year;
+        bytes[2] = self.month;
+        bytes[3] = self.day_of_month;
+        bytes[4] = self.hour;
+        bytes[5] = self.minute;
+        bytes[6] = self.seconds;
+        bytes[7..15].copy_from_slice(&self.padding);
         bytes[15] = self.checksum;
 
         bytes
