@@ -41,7 +41,7 @@ pub async fn connect(filter_colmi: bool) {
 
                 let peripheral = selected_device.peripheral();
 
-                match DeviceManager::subscribe_to_notifications(&peripheral, &notify_char).await {
+                match DeviceManager::subscribe_to_notifications(peripheral, &notify_char).await {
                     Ok(_) => (),
                     Err(err) => {
                         println!("{}", err);
@@ -49,7 +49,7 @@ pub async fn connect(filter_colmi: bool) {
                     }
                 }
 
-                match DeviceManager::write_request(&peripheral, &write_char, FeatureRequest::new())
+                match DeviceManager::write_request(peripheral, &write_char, FeatureRequest::new())
                     .await
                 {
                     Ok(_) => (),
@@ -59,13 +59,12 @@ pub async fn connect(filter_colmi: bool) {
                     }
                 }
 
-                match DeviceManager::read_response::<FeatureResponse>(&peripheral, &notify_char)
+                match DeviceManager::read_response::<FeatureResponse>(peripheral, &notify_char)
                     .await
                 {
                     Ok(features) => save_device_to_config(selected_device, features),
                     Err(err) => {
                         println!("{}", err);
-                        return;
                     }
                 }
             }
@@ -96,7 +95,7 @@ pub async fn battery() {
 
                 let peripheral = selected_device.peripheral();
 
-                match DeviceManager::subscribe_to_notifications(&peripheral, &notify_char).await {
+                match DeviceManager::subscribe_to_notifications(peripheral, &notify_char).await {
                     Ok(_) => (),
                     Err(err) => {
                         println!("{}", err);
@@ -104,7 +103,7 @@ pub async fn battery() {
                     }
                 }
 
-                match DeviceManager::write_request(&peripheral, &write_char, BatteryRequest::new())
+                match DeviceManager::write_request(peripheral, &write_char, BatteryRequest::new())
                     .await
                 {
                     Ok(_) => (),
@@ -114,13 +113,12 @@ pub async fn battery() {
                     }
                 }
 
-                match DeviceManager::read_response::<BatteryResponse>(&peripheral, &notify_char)
+                match DeviceManager::read_response::<BatteryResponse>(peripheral, &notify_char)
                     .await
                 {
                     Ok(response) => println!("{}", response),
                     Err(err) => {
                         println!("{}", err);
-                        return;
                     }
                 }
             }
