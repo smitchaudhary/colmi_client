@@ -22,4 +22,5 @@ pub enum Commands {
     },
     Battery,
     Blink,
+    Reset,
 }

@@ -18,5 +18,6 @@ async fn main() {
         Commands::Connect { all } => cli::commands::connect(!all).await,
         Commands::Battery => cli::commands::battery().await,
         Commands::Blink => cli::commands::blink().await,
+        Commands::Reset => cli::commands::reset().await,
     }
 }
