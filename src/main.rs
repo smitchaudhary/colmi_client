@@ -20,5 +20,6 @@ async fn main() {
         Commands::Blink => cli::commands::blink().await,
         Commands::Reset => cli::commands::reset().await,
         Commands::Reboot => cli::commands::reboot().await,
+        Commands::Find => cli::commands::find().await,
     }
 }

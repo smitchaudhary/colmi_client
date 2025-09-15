@@ -8,6 +8,7 @@ use crate::error::ScanError;
 use crate::protocol::battery::{BatteryRequest, BatteryResponse};
 use crate::protocol::blink::BlinkRequest;
 use crate::protocol::features::{FeatureRequest, FeatureResponse};
+use crate::protocol::find::FindRequest;
 use crate::protocol::reboot::RebootRequest;
 use crate::protocol::reset::ResetRequest;
 use crate::tui;
@@ -247,6 +248,42 @@ pub async fn reboot() {
                 let peripheral = selected_device.peripheral();
 
                 match DeviceManager::write_request(peripheral, &write_char, RebootRequest::new())
+                    .await
+                {
+                    Ok(_) => (),
+                    Err(err) => {
+                        println!("{}", err);
+                        return;
+                    }
+                }
+            }
+        }
+        Err(err) => println!("{}", err),
+    }
+}
+
+pub async fn find() {
+    match filter_devices(true).await {
+        Ok(devices) => {
+            println!("Found {} device(s):", &devices.len());
+
+            if let Some(selected_device) = tui::select_device(devices) {
+                let (write_char, _notify_char) =
+                    match DeviceManager::connect(&selected_device).await {
+                        Ok(chars) => chars,
+                        Err(err) => {
+                            println!("{}", err);
+                            return;
+                        }
+                    };
+
+                let write_char = write_char.expect("Write characteristic not found");
+
+                println!("Connected to device {}", selected_device);
+
+                let peripheral = selected_device.peripheral();
+
+                match DeviceManager::write_request(peripheral, &write_char, FindRequest::new())
                     .await
                 {
                     Ok(_) => (),

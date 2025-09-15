@@ -24,4 +24,5 @@ pub enum Commands {
     Blink,
     Reset,
     Reboot,
+    Find,
 }

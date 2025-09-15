@@ -3,6 +3,7 @@ use crate::error::ProtocolError;
 pub mod battery;
 pub mod blink;
 pub mod features;
+pub mod find;
 pub mod reboot;
 pub mod reset;
 
