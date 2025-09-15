@@ -292,6 +292,7 @@ dependencies = [
  "btleplug",
  "chrono",
  "clap",
+ "futures-util",
  "inquire",
  "serde",
  "thiserror 2.0.12",

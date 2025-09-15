@@ -59,8 +59,13 @@ pub async fn connect(filter_colmi: bool) {
                     }
                 }
 
-                match DeviceManager::read_response::<FeatureResponse>(peripheral, &notify_char)
-                    .await
+                match DeviceManager::read_response_stream::<FeatureResponse>(
+                    peripheral,
+                    &notify_char,
+                    1,
+                    1000,
+                )
+                .await
                 {
                     Ok(features) => save_device_to_config(selected_device, features),
                     Err(err) => {

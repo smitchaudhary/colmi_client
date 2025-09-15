@@ -42,11 +42,14 @@ pub enum ProtocolError {
     InvalidPacketLength,
 }
 
-#[derive(Debug, Error)]
+#[derive(Error, Debug)]
 pub enum DeviceError {
     #[error(transparent)]
     Connection(#[from] ConnectionError),
 
     #[error(transparent)]
     Protocol(#[from] ProtocolError),
+
+    #[error("Operation timed out")]
+    Timeout,
 }
