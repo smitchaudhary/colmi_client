@@ -1,3 +1,5 @@
+use inquire::Confirm;
+
 use crate::bluetooth::scanner;
 use crate::config::manager::save_device_to_config;
 use crate::devices::manager::DeviceManager;
@@ -189,16 +191,32 @@ pub async fn reset() {
 
                 println!("Connected to device {}", selected_device);
 
-                let peripheral = selected_device.peripheral();
+                let confirm = Confirm::new("This will reset the device. Continue?")
+                    .with_default(false)
+                    .prompt();
 
-                match DeviceManager::write_request(peripheral, &write_char, ResetRequest::new())
-                    .await
-                {
-                    Ok(_) => (),
-                    Err(err) => {
-                        println!("{}", err);
-                        return;
+                match confirm {
+                    Ok(true) => {
+                        let peripheral = selected_device.peripheral();
+
+                        match DeviceManager::write_request(
+                            peripheral,
+                            &write_char,
+                            ResetRequest::new(),
+                        )
+                        .await
+                        {
+                            Ok(_) => (),
+                            Err(err) => {
+                                println!("{}", err);
+                                return;
+                            }
+                        }
                     }
+                    Ok(false) => {
+                        println!("Reset cancelled");
+                    }
+                    Err(err) => println!("{}", err),
                 }
             }
         }
