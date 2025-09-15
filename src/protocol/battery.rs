@@ -9,6 +9,7 @@ pub struct BatteryRequest {
     pub checksum: u8,
 }
 
+#[allow(dead_code)]
 pub struct BatteryResponse {
     pub command_id: u8,
     pub charge_pct: u8,
