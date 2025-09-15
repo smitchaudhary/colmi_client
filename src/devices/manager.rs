@@ -94,11 +94,7 @@ impl DeviceManager {
                         if packet[0] == expected_command_id {
                             let response = R::from_bytes(packet.clone())?;
                             return Ok(response);
-                        } else if packet[0] == 0x2f {
-                            println!("Got the notification packet!");
-                            continue;
                         } else {
-                            println!("Got an unexpected packet!");
                             continue;
                         }
                     }
