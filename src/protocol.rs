@@ -1,6 +1,7 @@
 use crate::error::ProtocolError;
 
 pub mod battery;
+pub mod blink;
 pub mod features;
 
 pub const SERVICE_UUID: &str = "6e40fff0-b5a3-f393-e0a9-e50e24dcca9e";
