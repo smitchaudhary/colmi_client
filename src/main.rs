@@ -19,5 +19,6 @@ async fn main() {
         Commands::Battery => cli::commands::battery().await,
         Commands::Blink => cli::commands::blink().await,
         Commands::Reset => cli::commands::reset().await,
+        Commands::Reboot => cli::commands::reboot().await,
     }
 }
