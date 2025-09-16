@@ -20,21 +20,33 @@ pub trait Request {
 }
 
 pub trait Response {
+    const EXPECTED_COMMAND_ID: u8;
+
     fn from_bytes(bytes: Vec<u8>) -> Result<Self, ProtocolError>
     where
         Self: Sized;
 
     fn verify_checksum(bytes: &[u8]) -> Result<(), ProtocolError> {
         if bytes.len() != 16 {
-            return Err(ProtocolError::InvalidPacketLength);
+            return Err(ProtocolError::PacketLength);
         }
         let calculated = calculate_checksum(&bytes[..15]);
         let actual = bytes[15];
 
         if calculated != actual {
-            return Err(ProtocolError::InvalidChecksum { calculated, actual });
+            return Err(ProtocolError::Checksum { calculated, actual });
         }
 
+        Ok(())
+    }
+
+    fn validate_command_id(bytes: &[u8]) -> Result<(), ProtocolError> {
+        if bytes[0] != Self::EXPECTED_COMMAND_ID {
+            return Err(ProtocolError::CommandId {
+                expected: Self::EXPECTED_COMMAND_ID,
+                actual: bytes[0],
+            });
+        }
         Ok(())
     }
 }

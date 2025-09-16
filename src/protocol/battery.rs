@@ -43,7 +43,10 @@ impl Request for BatteryRequest {
 }
 
 impl Response for BatteryResponse {
+    const EXPECTED_COMMAND_ID: u8 = 3;
+
     fn from_bytes(bytes: Vec<u8>) -> Result<Self, ProtocolError> {
+        Self::validate_command_id(&bytes)?;
         match Self::verify_checksum(&bytes) {
             Ok(_) => Ok(Self {
                 command_id: bytes[0],

@@ -36,10 +36,13 @@ pub enum ConnectionError {
 #[derive(Error, Debug)]
 pub enum ProtocolError {
     #[error("Invalid checksum. Calculated: {}, Actual: {}", calculated, actual)]
-    InvalidChecksum { calculated: u8, actual: u8 },
+    Checksum { calculated: u8, actual: u8 },
 
     #[error("Invalid packet length")]
-    InvalidPacketLength,
+    PacketLength,
+
+    #[error("Invalid command ID. Expected: {expected}, Actual: {actual}")]
+    CommandId { expected: u8, actual: u8 },
 }
 
 #[derive(Error, Debug)]

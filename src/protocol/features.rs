@@ -92,7 +92,10 @@ impl Request for FeatureRequest {
 }
 
 impl Response for FeatureResponse {
+    const EXPECTED_COMMAND_ID: u8 = 1;
+
     fn from_bytes(bytes: Vec<u8>) -> Result<Self, ProtocolError> {
+        Self::validate_command_id(&bytes)?;
         Self::verify_checksum(&bytes)?;
 
         Ok(Self {
