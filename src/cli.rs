@@ -25,4 +25,5 @@ pub enum Commands {
     Reset,
     Reboot,
     Find,
+    Tui,
 }
