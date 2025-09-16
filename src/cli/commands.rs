@@ -165,7 +165,6 @@ pub async fn blink() {
                     Ok(_) => (),
                     Err(err) => {
                         println!("{}", err);
-                        return;
                     }
                 }
             }
@@ -211,7 +210,6 @@ pub async fn reset() {
                             Ok(_) => (),
                             Err(err) => {
                                 println!("{}", err);
-                                return;
                             }
                         }
                     }
@@ -253,7 +251,6 @@ pub async fn reboot() {
                     Ok(_) => (),
                     Err(err) => {
                         println!("{}", err);
-                        return;
                     }
                 }
             }
@@ -289,7 +286,6 @@ pub async fn find() {
                     Ok(_) => (),
                     Err(err) => {
                         println!("{}", err);
-                        return;
                     }
                 }
             }
