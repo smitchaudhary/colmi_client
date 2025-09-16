@@ -82,9 +82,18 @@ impl App {
             self.devices.clear();
             self.status_message = "Scanning devices...".to_string();
 
-            self.scan_task = Some(tokio::spawn(
-                async move { scanner::scan_for_devices().await },
-            ));
+            self.scan_task = Some(tokio::spawn(async move {
+                match scanner::scan_for_devices().await {
+                    Ok(all_devices) => {
+                        let colmi_devices: Vec<Device> = all_devices
+                            .into_iter()
+                            .filter(|d| d.is_colmi_device())
+                            .collect();
+                        Ok(colmi_devices)
+                    }
+                    Err(err) => Err(err),
+                }
+            }));
         }
     }
 
