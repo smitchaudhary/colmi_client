@@ -53,3 +53,21 @@ pub enum DeviceError {
     #[error("Operation timed out")]
     Timeout,
 }
+
+#[derive(Error, Debug)]
+pub enum TuiError {
+    #[error(transparent)]
+    Scan(#[from] ScanError),
+
+    #[error(transparent)]
+    Device(#[from] DeviceError),
+
+    #[error("Terminal initialization failed: {0}")]
+    TerminalInit(String),
+
+    #[error("Terminal rendering failed: {0}")]
+    Rendering(String),
+
+    #[error("Event handling failed: {0}")]
+    EventHandling(String),
+}

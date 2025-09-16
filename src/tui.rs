@@ -13,7 +13,10 @@ use crossterm::{
 };
 use ratatui::{Terminal, prelude::CrosstermBackend};
 
-use crate::tui::{app::App, ui::render_app};
+use crate::{
+    error::TuiError,
+    tui::{app::App, ui::render_app},
+};
 
 use crate::devices::models::Device;
 use inquire::Select;
@@ -24,12 +27,12 @@ pub fn select_device(devices: Vec<Device>) -> Option<Device> {
         .ok()
 }
 
-pub async fn run_tui() -> Result<(), Box<dyn std::error::Error>> {
-    enable_raw_mode()?;
+pub async fn run_tui() -> Result<(), TuiError> {
+    enable_raw_mode().map_err(|e| TuiError::TerminalInit(e.to_string()))?;
     let mut stdout = stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen).map_err(|e| TuiError::TerminalInit(e.to_string()))?;
     let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    let mut terminal = Terminal::new(backend).map_err(|e| TuiError::TerminalInit(e.to_string()))?;
 
     let mut app = App::new();
 
@@ -37,10 +40,14 @@ pub async fn run_tui() -> Result<(), Box<dyn std::error::Error>> {
     let tick_rate = Duration::from_millis(250);
 
     loop {
-        terminal.draw(|f| render_app(f, &app))?;
+        terminal
+            .draw(|f| render_app(f, &app))
+            .map_err(|e| TuiError::Rendering(e.to_string()))?;
 
-        if event::poll(tick_rate)? {
-            if let Event::Key(key) = event::read()? {
+        if event::poll(tick_rate).map_err(|e| TuiError::EventHandling(e.to_string()))? {
+            if let Event::Key(key) =
+                event::read().map_err(|e| TuiError::EventHandling(e.to_string()))?
+            {
                 app.handle_key_event(key);
             }
         }
