@@ -32,8 +32,8 @@ impl DeviceManager {
     ) -> Result<(Characteristic, Characteristic), DeviceError> {
         let (write_char, notify_char) = Self::connect(device).await?;
 
-        let write_char = write_char.expect("Write characteristic not found");
-        let notify_char = notify_char.expect("Notify characteristic not found");
+        let write_char = write_char.ok_or(ConnectionError::CharacteristicsNotFound)?;
+        let notify_char = notify_char.ok_or(ConnectionError::CharacteristicsNotFound)?;
 
         let peripheral = device.peripheral();
 
@@ -192,7 +192,8 @@ impl DeviceManager {
         device: &Device,
         request: impl Request,
     ) -> Result<(), DeviceError> {
-        let (write_char, _notify_char) = Self::connect_and_setup(device).await?;
+        let (write_char, _notify_char) = Self::connect(device).await?;
+        let write_char = write_char.ok_or(ConnectionError::CharacteristicsNotFound)?;
         let peripheral = device.peripheral();
         Self::write_request(peripheral, &write_char, request).await?;
         Ok(())
