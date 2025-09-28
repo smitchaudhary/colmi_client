@@ -1,13 +1,11 @@
 use inquire::Confirm;
 
 use crate::bluetooth::scanner;
-use crate::config::manager::save_device_to_config;
 use crate::devices::manager::DeviceManager;
 use crate::devices::models::Device;
 use crate::error::ScanError;
 use crate::protocol::battery::{BatteryRequest, BatteryResponse};
 use crate::protocol::blink::BlinkRequest;
-use crate::protocol::features::{FeatureRequest, FeatureResponse};
 use crate::protocol::find::FindRequest;
 use crate::protocol::reboot::RebootRequest;
 use crate::protocol::reset::ResetRequest;
@@ -31,53 +29,12 @@ pub async fn connect(filter_colmi: bool) {
             println!("Found {} device(s):", &devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
-                let (write_char, notify_char) = match DeviceManager::connect(&selected_device).await
-                {
-                    Ok(chars) => chars,
+                match DeviceManager::connect_and_setup(&selected_device).await {
+                    Ok(_) => println!("Connected and configured device: {}", selected_device),
                     Err(err) => {
                         println!("{}", err);
-                        return;
                     }
                 };
-
-                let write_char = write_char.expect("Write characteristic not found");
-                let notify_char = notify_char.expect("Notify characteristic not found");
-
-                println!("Connected to device {}", selected_device);
-
-                let peripheral = selected_device.peripheral();
-
-                match DeviceManager::subscribe_to_notifications(peripheral, &notify_char).await {
-                    Ok(_) => (),
-                    Err(err) => {
-                        println!("{}", err);
-                        return;
-                    }
-                }
-
-                match DeviceManager::write_request(peripheral, &write_char, FeatureRequest::new())
-                    .await
-                {
-                    Ok(_) => (),
-                    Err(err) => {
-                        println!("{}", err);
-                        return;
-                    }
-                }
-
-                match DeviceManager::read_response_stream::<FeatureResponse>(
-                    peripheral,
-                    &notify_char,
-                    1,
-                    1000,
-                )
-                .await
-                {
-                    Ok(features) => save_device_to_config(selected_device, features),
-                    Err(err) => {
-                        println!("{}", err);
-                    }
-                }
             }
         }
         Err(err) => println!("{}", err),

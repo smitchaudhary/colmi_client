@@ -7,15 +7,43 @@ use btleplug::{
 use futures_util::stream::StreamExt;
 use tokio::time::timeout;
 
-use crate::devices::models::Device;
-use crate::error::{ConnectionError, DeviceError};
-use crate::protocol::{
-    NOTIFY_CHARACTERISTICS, Request, Response, SERVICE_UUID, WRITE_CHARACTERISTICS,
+use crate::{
+    config::manager::save_device_to_config,
+    protocol::{NOTIFY_CHARACTERISTICS, Request, Response, SERVICE_UUID, WRITE_CHARACTERISTICS},
+};
+use crate::{devices::models::Device, protocol::features::FeatureResponse};
+use crate::{
+    error::{ConnectionError, DeviceError},
+    protocol::features::FeatureRequest,
 };
 
 pub struct DeviceManager;
 
 impl DeviceManager {
+    pub async fn connect_and_setup(
+        device: &Device,
+    ) -> Result<(Characteristic, Characteristic), DeviceError> {
+        let (write_char, notify_char) = Self::connect(device).await?;
+
+        let write_char = write_char.expect("Write characteristic not found");
+        let notify_char = notify_char.expect("Notify characteristic not found");
+
+        let peripheral = device.peripheral();
+
+        Self::subscribe_to_notifications(peripheral, &notify_char).await?;
+
+        let request = FeatureRequest::new();
+
+        Self::write_request(peripheral, &write_char, request).await?;
+        let features =
+            Self::read_response_stream::<FeatureResponse>(peripheral, &notify_char, 1, 1000)
+                .await?;
+
+        save_device_to_config(device.clone(), features);
+
+        Ok((write_char, notify_char))
+    }
+
     pub async fn connect(
         device: &Device,
     ) -> Result<(Option<Characteristic>, Option<Characteristic>), ConnectionError> {
@@ -49,11 +77,11 @@ impl DeviceManager {
     }
 
     pub async fn write_request(
-        device: &PlatformPeripheral,
+        peripheral: &PlatformPeripheral,
         write_char: &Characteristic,
         request: impl Request,
     ) -> Result<(), ConnectionError> {
-        device
+        peripheral
             .write(write_char, &request.as_bytes(), WriteType::WithoutResponse)
             .await
             .map_err(|_| ConnectionError::WriteFailed)?;
@@ -61,10 +89,10 @@ impl DeviceManager {
     }
 
     pub async fn read_response<R: Response>(
-        device: &PlatformPeripheral,
+        peripheral: &PlatformPeripheral,
         notify_char: &Characteristic,
     ) -> Result<R, DeviceError> {
-        let reading = device
+        let reading = peripheral
             .read(notify_char)
             .await
             .map_err(|_| ConnectionError::ReadFailed)?;
@@ -73,12 +101,12 @@ impl DeviceManager {
     }
 
     pub async fn read_response_stream<R: Response>(
-        device: &PlatformPeripheral,
+        peripheral: &PlatformPeripheral,
         notify_char: &Characteristic,
         expected_command_id: u8,
         timeout_ms: u64,
     ) -> Result<R, DeviceError> {
-        let mut notifications = device
+        let mut notifications = peripheral
             .notifications()
             .await
             .map_err(|_| ConnectionError::SubscribeFailed)?;
@@ -100,9 +128,11 @@ impl DeviceManager {
                     }
                 }
                 Ok(None) => {
+                    println!("No response received within the timeout period.");
                     return Err(DeviceError::Timeout);
                 }
                 Err(_) => {
+                    println!("Error occurred while waiting for response.");
                     return Err(DeviceError::Timeout);
                 }
             }
@@ -110,10 +140,10 @@ impl DeviceManager {
     }
 
     pub async fn subscribe_to_notifications(
-        device: &PlatformPeripheral,
+        peripheral: &PlatformPeripheral,
         notify_char: &Characteristic,
     ) -> Result<(), ConnectionError> {
-        device
+        peripheral
             .subscribe(notify_char)
             .await
             .map_err(|_| ConnectionError::SubscribeFailed)?;
