@@ -5,10 +5,6 @@ use crate::devices::manager::DeviceManager;
 use crate::devices::models::Device;
 use crate::error::ScanError;
 use crate::protocol::battery::{BatteryRequest, BatteryResponse};
-use crate::protocol::blink::BlinkRequest;
-use crate::protocol::find::FindRequest;
-use crate::protocol::reboot::RebootRequest;
-use crate::protocol::reset::ResetRequest;
 use crate::tui;
 
 pub async fn scan(filter_colmi: bool) {
@@ -101,29 +97,12 @@ pub async fn blink() {
             println!("Found {} device(s):", &devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
-                let (write_char, _notify_char) =
-                    match DeviceManager::connect(&selected_device).await {
-                        Ok(chars) => chars,
-                        Err(err) => {
-                            println!("{}", err);
-                            return;
-                        }
-                    };
-
-                let write_char = write_char.expect("Write characteristic not found");
-
-                println!("Connected to device {}", selected_device);
-
-                let peripheral = selected_device.peripheral();
-
-                match DeviceManager::write_request(peripheral, &write_char, BlinkRequest::new())
-                    .await
-                {
+                match DeviceManager::blink(&selected_device).await {
                     Ok(_) => (),
                     Err(err) => {
                         println!("{}", err);
                     }
-                }
+                };
             }
         }
         Err(err) => println!("{}", err),
@@ -136,44 +115,22 @@ pub async fn reset() {
             println!("Found {} device(s):", &devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
-                let (write_char, _notify_char) =
-                    match DeviceManager::connect(&selected_device).await {
-                        Ok(chars) => chars,
+                match Confirm::new("This will reset the device. Continue?")
+                    .with_default(false)
+                    .prompt()
+                {
+                    Ok(true) => match DeviceManager::reset(&selected_device).await {
+                        Ok(_) => (),
                         Err(err) => {
                             println!("{}", err);
-                            return;
                         }
-                    };
-
-                let write_char = write_char.expect("Write characteristic not found");
-
-                println!("Connected to device {}", selected_device);
-
-                let confirm = Confirm::new("This will reset the device. Continue?")
-                    .with_default(false)
-                    .prompt();
-
-                match confirm {
-                    Ok(true) => {
-                        let peripheral = selected_device.peripheral();
-
-                        match DeviceManager::write_request(
-                            peripheral,
-                            &write_char,
-                            ResetRequest::new(),
-                        )
-                        .await
-                        {
-                            Ok(_) => (),
-                            Err(err) => {
-                                println!("{}", err);
-                            }
-                        }
-                    }
+                    },
                     Ok(false) => {
-                        println!("Reset cancelled");
+                        println!("Reset cancelled.");
                     }
-                    Err(err) => println!("{}", err),
+                    Err(err) => {
+                        println!("{}", err);
+                    }
                 }
             }
         }
@@ -187,29 +144,12 @@ pub async fn reboot() {
             println!("Found {} device(s):", &devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
-                let (write_char, _notify_char) =
-                    match DeviceManager::connect(&selected_device).await {
-                        Ok(chars) => chars,
-                        Err(err) => {
-                            println!("{}", err);
-                            return;
-                        }
-                    };
-
-                let write_char = write_char.expect("Write characteristic not found");
-
-                println!("Connected to device {}", selected_device);
-
-                let peripheral = selected_device.peripheral();
-
-                match DeviceManager::write_request(peripheral, &write_char, RebootRequest::new())
-                    .await
-                {
+                match DeviceManager::reboot(&selected_device).await {
                     Ok(_) => (),
                     Err(err) => {
                         println!("{}", err);
                     }
-                }
+                };
             }
         }
         Err(err) => println!("{}", err),
@@ -222,29 +162,12 @@ pub async fn find() {
             println!("Found {} device(s):", &devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
-                let (write_char, _notify_char) =
-                    match DeviceManager::connect(&selected_device).await {
-                        Ok(chars) => chars,
-                        Err(err) => {
-                            println!("{}", err);
-                            return;
-                        }
-                    };
-
-                let write_char = write_char.expect("Write characteristic not found");
-
-                println!("Connected to device {}", selected_device);
-
-                let peripheral = selected_device.peripheral();
-
-                match DeviceManager::write_request(peripheral, &write_char, FindRequest::new())
-                    .await
-                {
+                match DeviceManager::find(&selected_device).await {
                     Ok(_) => (),
                     Err(err) => {
                         println!("{}", err);
                     }
-                }
+                };
             }
         }
         Err(err) => println!("{}", err),

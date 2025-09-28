@@ -9,7 +9,10 @@ use tokio::time::timeout;
 
 use crate::{
     config::manager::save_device_to_config,
-    protocol::{NOTIFY_CHARACTERISTICS, Request, Response, SERVICE_UUID, WRITE_CHARACTERISTICS},
+    protocol::{
+        NOTIFY_CHARACTERISTICS, Request, Response, SERVICE_UUID, WRITE_CHARACTERISTICS,
+        blink::BlinkRequest, find::FindRequest, reboot::RebootRequest, reset::ResetRequest,
+    },
 };
 use crate::{devices::models::Device, protocol::features::FeatureResponse};
 use crate::{
@@ -145,6 +148,34 @@ impl DeviceManager {
             .subscribe(notify_char)
             .await
             .map_err(|_| ConnectionError::SubscribeFailed)?;
+        Ok(())
+    }
+}
+
+impl DeviceManager {
+    pub async fn blink(device: &Device) -> Result<(), DeviceError> {
+        Self::execute_device_control_command(device, BlinkRequest::new()).await
+    }
+
+    pub async fn reboot(device: &Device) -> Result<(), DeviceError> {
+        Self::execute_device_control_command(device, RebootRequest::new()).await
+    }
+
+    pub async fn find(device: &Device) -> Result<(), DeviceError> {
+        Self::execute_device_control_command(device, FindRequest::new()).await
+    }
+
+    pub async fn reset(device: &Device) -> Result<(), DeviceError> {
+        Self::execute_device_control_command(device, ResetRequest::new()).await
+    }
+
+    async fn execute_device_control_command(
+        device: &Device,
+        request: impl Request,
+    ) -> Result<(), DeviceError> {
+        let (write_char, _notify_char) = Self::connect_and_setup(device).await?;
+        let peripheral = device.peripheral();
+        Self::write_request(peripheral, &write_char, request).await?;
         Ok(())
     }
 }
