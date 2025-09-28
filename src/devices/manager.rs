@@ -11,7 +11,11 @@ use crate::{
     config::manager::save_device_to_config,
     protocol::{
         NOTIFY_CHARACTERISTICS, Request, Response, SERVICE_UUID, WRITE_CHARACTERISTICS,
-        blink::BlinkRequest, find::FindRequest, reboot::RebootRequest, reset::ResetRequest,
+        battery::{BatteryRequest, BatteryResponse},
+        blink::BlinkRequest,
+        find::FindRequest,
+        reboot::RebootRequest,
+        reset::ResetRequest,
     },
 };
 use crate::{devices::models::Device, protocol::features::FeatureResponse};
@@ -149,6 +153,21 @@ impl DeviceManager {
             .await
             .map_err(|_| ConnectionError::SubscribeFailed)?;
         Ok(())
+    }
+}
+
+impl DeviceManager {
+    pub async fn get_battery_level(device: &Device) -> Result<BatteryResponse, DeviceError> {
+        let (write_char, notify_char) = Self::connect_and_setup(device).await?;
+
+        let peripheral = device.peripheral();
+
+        let request = BatteryRequest::new();
+
+        Self::write_request(peripheral, &write_char, request).await?;
+        let response = Self::read_response::<BatteryResponse>(peripheral, &notify_char).await?;
+
+        Ok(response)
     }
 }
 

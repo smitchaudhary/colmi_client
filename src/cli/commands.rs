@@ -4,7 +4,6 @@ use crate::bluetooth::scanner;
 use crate::devices::manager::DeviceManager;
 use crate::devices::models::Device;
 use crate::error::ScanError;
-use crate::protocol::battery::{BatteryRequest, BatteryResponse};
 use crate::tui;
 
 pub async fn scan(filter_colmi: bool) {
@@ -43,48 +42,12 @@ pub async fn battery() {
             println!("Found {} device(s):", &devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
-                let (write_char, notify_char) = match DeviceManager::connect(&selected_device).await
-                {
-                    Ok(chars) => chars,
-                    Err(err) => {
-                        println!("{}", err);
-                        return;
-                    }
-                };
-
-                let write_char = write_char.expect("Write characteristic not found");
-                let notify_char = notify_char.expect("Notify characteristic not found");
-
-                println!("Connected to device {}", selected_device);
-
-                let peripheral = selected_device.peripheral();
-
-                match DeviceManager::subscribe_to_notifications(peripheral, &notify_char).await {
-                    Ok(_) => (),
-                    Err(err) => {
-                        println!("{}", err);
-                        return;
-                    }
-                }
-
-                match DeviceManager::write_request(peripheral, &write_char, BatteryRequest::new())
-                    .await
-                {
-                    Ok(_) => (),
-                    Err(err) => {
-                        println!("{}", err);
-                        return;
-                    }
-                }
-
-                match DeviceManager::read_response::<BatteryResponse>(peripheral, &notify_char)
-                    .await
-                {
+                match DeviceManager::get_battery_level(&selected_device).await {
                     Ok(response) => println!("{}", response),
                     Err(err) => {
                         println!("{}", err);
                     }
-                }
+                };
             }
         }
         Err(err) => println!("{}", err),
