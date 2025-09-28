@@ -53,8 +53,11 @@ pub enum DeviceError {
     #[error(transparent)]
     Protocol(#[from] ProtocolError),
 
-    #[error("Operation timed out")]
-    Timeout,
+    #[error("Operation timed out: {0}")]
+    Timeout(tokio::time::error::Elapsed),
+
+    #[error("Notification stream ended unexpectedly")]
+    StreamEnded,
 }
 
 #[derive(Error, Debug)]

@@ -128,12 +128,10 @@ impl DeviceManager {
                     }
                 }
                 Ok(None) => {
-                    println!("No response received within the timeout period.");
-                    return Err(DeviceError::Timeout);
+                    return Err(DeviceError::StreamEnded);
                 }
-                Err(_) => {
-                    println!("Error occurred while waiting for response.");
-                    return Err(DeviceError::Timeout);
+                Err(err) => {
+                    return Err(DeviceError::Timeout(err));
                 }
             }
         }
