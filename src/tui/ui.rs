@@ -47,6 +47,8 @@ fn render_main_content(f: &mut Frame, area: Rect, app: &App) {
         Screen::Scanning => render_scanning_screen(f, area, app),
         Screen::DeviceList => render_device_list_screen(f, area, app),
         Screen::Error => render_error_screen(f, area, app),
+        Screen::Connecting => render_connecting_screen(f, area, app),
+        Screen::Connected => render_connected_screen(f, area, app),
     }
 }
 
@@ -184,12 +186,69 @@ fn render_error_screen(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(paragraph, area);
 }
 
+fn render_connecting_screen(f: &mut Frame, area: Rect, app: &App) {
+    let device_name = app.connecting_device_name.as_deref().unwrap_or("Unknown Device");
+
+    let content = vec![
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Connecting...",
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from(format!("Connecting to {}...", device_name)),
+        Line::from(""),
+        Line::from(vec![Span::styled("Press ESC to cancel", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))]),
+    ];
+
+    let paragraph = Paragraph::new(content).alignment(Alignment::Center).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .title("Connecting"),
+    );
+
+    f.render_widget(paragraph, area);
+}
+
+fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
+    let content = vec![
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Connected!",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from("Connected to device"),
+        Line::from(""),
+        Line::from(vec![Span::raw("Status: "), Span::styled("Connected", Style::default().fg(Color::White))]),
+        Line::from(""),
+        Line::from(""),
+        Line::from(vec![Span::styled("Press ESC to disconnect", Style::default().fg(Color::Red))]),
+    ];
+
+    let paragraph = Paragraph::new(content).alignment(Alignment::Center).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .title("Connected"),
+    );
+
+    f.render_widget(paragraph, area);
+}
+
 fn render_footer(f: &mut Frame, area: Rect, app: &App) {
     let help_text = match app.current_screen {
         Screen::Idle => "[s] Scan | [q] Quit",
         Screen::Scanning => "[ESC] Stop | Found: 0 devices",
         Screen::DeviceList => "[↑/↓] Select | [ENTER] Choose | [ESC] Back | [s] Rescan",
         Screen::Error => "[ESC] Back",
+        Screen::Connecting => "[ESC] Cancel | Connecting...",
+        Screen::Connected => "[q] Quit | Connected",
     };
 
     let device_count = format!("Found: {} devices", app.devices.len());

@@ -1,4 +1,9 @@
-use crate::{bluetooth::scanner, devices::models::Device, error::ScanError};
+use crate::{
+    bluetooth::scanner,
+    devices::{manager::DeviceManager, models::Device},
+    error::{DeviceError, ScanError},
+    protocol::battery::BatteryResponse,
+};
 use crossterm::event::{KeyCode, KeyEvent};
 use std::time::Instant;
 use tokio::task;
@@ -8,6 +13,8 @@ pub enum Screen {
     Idle,
     Scanning,
     DeviceList,
+    Connecting,
+    Connected,
     Error,
 }
 
@@ -24,6 +31,14 @@ pub struct App {
     pub error_message: Option<String>,
 
     pub scan_task: Option<task::JoinHandle<Result<Vec<Device>, ScanError>>>,
+
+    pub connecting_device_name: Option<String>,
+
+    pub connected_device: Option<Device>,
+    pub battery_level: Option<BatteryResponse>,
+    pub is_operation_in_progress: bool,
+    pub connection_task: Option<task::JoinHandle<Result<(), DeviceError>>>,
+    pub operation_task: Option<task::JoinHandle<Result<(), DeviceError>>>,
 }
 
 impl App {
@@ -38,6 +53,12 @@ impl App {
             status_message: "Ready to scan".to_string(),
             error_message: None,
             scan_task: None,
+            connecting_device_name: None,
+            connected_device: None,
+            battery_level: None,
+            is_operation_in_progress: false,
+            connection_task: None,
+            operation_task: None,
         }
     }
 
@@ -70,12 +91,30 @@ impl App {
                 self.current_screen = Screen::Idle;
                 self.error_message = None;
             }
+            Screen::Connecting => {
+                self.cancel_connection();
+                self.current_screen = Screen::Idle;
+                self.status_message = "Connection cancelled".to_string();
+            }
+            Screen::Connected => {}
             Screen::Idle => {}
         }
     }
 
+    fn cancel_connection(&mut self) {
+        if let Some(task) = &mut self.connection_task {
+            task.abort();
+            self.connection_task = None;
+        }
+        self.connecting_device_name = None;
+        self.is_operation_in_progress = false;
+        self.status_message = "Connection cancelled".to_string();
+    }
+
     pub fn start_scanning(&mut self) {
-        if self.current_screen == Screen::Idle || self.current_screen == Screen::DeviceList && !self.is_scanning {
+        if self.current_screen == Screen::Idle
+            || self.current_screen == Screen::DeviceList && !self.is_scanning
+        {
             self.current_screen = Screen::Scanning;
             self.is_scanning = true;
             self.scan_start_time = Some(Instant::now());
@@ -154,8 +193,18 @@ impl App {
 
     fn handle_enter(&mut self) {
         if self.current_screen == Screen::DeviceList {
-            if let Some(selected) = self.selected_device {
-                self.status_message = format!("Selected: {}", self.devices[selected].display_name())
+            if let Some(selected_device) = self.selected_device {
+                let device = self.devices[selected_device].clone();
+                self.status_message = format!("Selected: {}", device.display_name());
+                self.current_screen = Screen::Connecting;
+                self.is_operation_in_progress = true;
+                self.connecting_device_name = Some(device.display_name().to_string());
+                self.connection_task = Some(tokio::spawn(async move {
+                    match DeviceManager::connect_and_setup(&device).await {
+                        Ok(_) => Ok(()),
+                        Err(err) => Err(err),
+                    }
+                }));
             }
         }
     }
