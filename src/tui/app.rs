@@ -75,7 +75,7 @@ impl App {
     }
 
     pub fn start_scanning(&mut self) {
-        if self.current_screen == Screen::Idle && !self.is_scanning {
+        if self.current_screen == Screen::Idle || self.current_screen == Screen::DeviceList && !self.is_scanning {
             self.current_screen = Screen::Scanning;
             self.is_scanning = true;
             self.scan_start_time = Some(Instant::now());
