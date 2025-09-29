@@ -53,7 +53,7 @@ pub async fn run_tui() -> Result<(), TuiError> {
         }
 
         if last_tick.elapsed() >= tick_rate {
-            app.update_scan_status().await;
+            app.update_operations().await;
             last_tick = Instant::now();
         }
 

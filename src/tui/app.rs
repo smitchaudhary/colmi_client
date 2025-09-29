@@ -142,7 +142,7 @@ impl App {
         self.status_message = "Scanning stopped".to_string();
     }
 
-    pub async fn update_scan_status(&mut self) {
+    pub async fn update_operations(&mut self) {
         if let Some(task) = &mut self.scan_task {
             if task.is_finished() {
                 match task.await {
@@ -167,6 +167,52 @@ impl App {
                 }
                 self.scan_task = None;
                 self.is_scanning = false;
+            }
+        }
+
+        if let Some(task) = &mut self.connection_task {
+            if task.is_finished() {
+                match task.await {
+                    Ok(Ok(_)) => {
+                        if let Some(selected) = self.selected_device {
+                            self.connected_device = Some(self.devices[selected].clone());
+                            self.current_screen = Screen::Connected;
+                            self.status_message = format!(
+                                "Connected to {}",
+                                self.connected_device.as_ref().unwrap().display_name()
+                            );
+                        }
+                    }
+                    Ok(Err(err)) => {
+                        self.current_screen = Screen::Error;
+                        self.error_message = Some(format!("Connection failed: {}", err));
+                    }
+                    Err(_) => {
+                        self.current_screen = Screen::Error;
+                        self.error_message = Some("Connection task panicked".to_string());
+                    }
+                }
+                self.connection_task = None;
+                self.connecting_device_name = None;
+                self.is_operation_in_progress = false;
+            }
+        }
+
+        if let Some(task) = &mut self.operation_task {
+            if task.is_finished() {
+                match task.await {
+                    Ok(Ok(_)) => {
+                        self.status_message = "Operation completed successfully".to_string();
+                    }
+                    Ok(Err(err)) => {
+                        self.current_screen = Screen::Error;
+                        self.error_message = Some(format!("Operation failed: {}", err));
+                    }
+                    Err(_) => {
+                        self.current_screen = Screen::Error;
+                        self.error_message = Some("Operation task panicked".to_string());
+                    }
+                }
             }
         }
     }
