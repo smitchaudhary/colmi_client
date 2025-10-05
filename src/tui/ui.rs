@@ -187,7 +187,10 @@ fn render_error_screen(f: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_connecting_screen(f: &mut Frame, area: Rect, app: &App) {
-    let device_name = app.connecting_device_name.as_deref().unwrap_or("Unknown Device");
+    let device_name = app
+        .connecting_device_name
+        .as_deref()
+        .unwrap_or("Unknown Device");
 
     let content = vec![
         Line::from(""),
@@ -200,7 +203,10 @@ fn render_connecting_screen(f: &mut Frame, area: Rect, app: &App) {
         Line::from(""),
         Line::from(format!("Connecting to {}...", device_name)),
         Line::from(""),
-        Line::from(vec![Span::styled("Press ESC to cancel", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))]),
+        Line::from(vec![Span::styled(
+            "Press ESC to cancel",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )]),
     ];
 
     let paragraph = Paragraph::new(content).alignment(Alignment::Center).block(
@@ -213,8 +219,28 @@ fn render_connecting_screen(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(paragraph, area);
 }
 
+fn create_battery_bar(charge_pct: u8) -> String {
+    let filled_blocks = (charge_pct as f32 / 100.0 * 10.0).round() as usize;
+    let empty_blocks = 10 - filled_blocks;
+    format!(
+        "[{}{}]",
+        "▪".repeat(filled_blocks),
+        "░".repeat(empty_blocks)
+    )
+}
+
+fn get_battery_color(charge_pct: u8) -> Style {
+    Style::default().fg(if charge_pct >= 70 {
+        Color::Green
+    } else if charge_pct >= 30 {
+        Color::Yellow
+    } else {
+        Color::Red
+    })
+}
+
 fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
-    let content = vec![
+    let mut content = vec![
         Line::from(""),
         Line::from(vec![Span::styled(
             "Connected!",
@@ -223,13 +249,51 @@ fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
                 .add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
-        Line::from("Connected to device"),
-        Line::from(""),
-        Line::from(vec![Span::raw("Status: "), Span::styled("Connected", Style::default().fg(Color::White))]),
-        Line::from(""),
-        Line::from(""),
-        Line::from(vec![Span::styled("Press ESC to disconnect", Style::default().fg(Color::Red))]),
     ];
+
+    if let Some(device) = &app.connected_device {
+        content.push(Line::from(format!("Device: {}", device.name())));
+    } else {
+        content.push(Line::from("Connected to device"));
+    }
+
+    content.push(Line::from(""));
+
+    if let Some(battery_level) = &app.battery_level {
+        let battery_bar = create_battery_bar(battery_level.charge_pct);
+        let charging_text = if battery_level.is_charging {
+            "⚡ Charging"
+        } else {
+            ""
+        };
+
+        content.push(Line::from(vec![
+            Span::raw("🔋 Battery: "),
+            Span::styled(
+                format!("{}%", battery_level.charge_pct),
+                get_battery_color(battery_level.charge_pct),
+            ),
+            Span::raw(" "),
+            Span::styled(battery_bar, get_battery_color(battery_level.charge_pct)),
+            Span::raw(format!("{}", charging_text)),
+        ]));
+    } else {
+        content.push(Line::from("🔋 Battery: Press [b] to check"));
+    }
+
+    content.extend_from_slice(&[
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("Status: "),
+            Span::styled("Connected", Style::default().fg(Color::White)),
+        ]),
+        Line::from(""),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Press ESC to disconnect",
+            Style::default().fg(Color::Red),
+        )]),
+    ]);
 
     let paragraph = Paragraph::new(content).alignment(Alignment::Center).block(
         Block::default()
@@ -248,7 +312,7 @@ fn render_footer(f: &mut Frame, area: Rect, app: &App) {
         Screen::DeviceList => "[↑/↓] Select | [ENTER] Choose | [ESC] Back | [s] Rescan",
         Screen::Error => "[ESC] Back",
         Screen::Connecting => "[ESC] Cancel | Connecting...",
-        Screen::Connected => "[q] Quit | Connected",
+        Screen::Connected => "[b] Battery | [q] Quit | Connected",
     };
 
     let device_count = format!("Found: {} devices", app.devices.len());

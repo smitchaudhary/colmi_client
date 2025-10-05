@@ -35,10 +35,11 @@ pub struct App {
     pub connecting_device_name: Option<String>,
 
     pub connected_device: Option<Device>,
-    pub battery_level: Option<BatteryResponse>,
     pub is_operation_in_progress: bool,
     pub connection_task: Option<task::JoinHandle<Result<(), DeviceError>>>,
     pub operation_task: Option<task::JoinHandle<Result<(), DeviceError>>>,
+    pub battery_task: Option<task::JoinHandle<Result<BatteryResponse, DeviceError>>>,
+    pub battery_level: Option<BatteryResponse>,
 }
 
 impl App {
@@ -55,10 +56,11 @@ impl App {
             scan_task: None,
             connecting_device_name: None,
             connected_device: None,
-            battery_level: None,
             is_operation_in_progress: false,
             connection_task: None,
             operation_task: None,
+            battery_task: None,
+            battery_level: None,
         }
     }
 
@@ -67,6 +69,7 @@ impl App {
             KeyCode::Char('q') => self.should_quit = true,
             KeyCode::Esc => self.handle_escape(),
             KeyCode::Char('s') => self.start_scanning(),
+            KeyCode::Char('b') => self.fetch_battery(),
             KeyCode::Up => self.handle_up(),
             KeyCode::Down => self.handle_down(),
             KeyCode::Enter => self.handle_enter(),
@@ -213,6 +216,30 @@ impl App {
                         self.error_message = Some("Operation task panicked".to_string());
                     }
                 }
+                self.operation_task = None;
+            }
+        }
+
+        if let Some(task) = &mut self.battery_task {
+            if task.is_finished() {
+                match task.await {
+                    Ok(Ok(battery_response)) => {
+                        self.status_message = format!(
+                            "Battery: {}% | Charging: {}",
+                            battery_response.charge_pct, battery_response.is_charging
+                        );
+                        self.battery_level = Some(battery_response);
+                    }
+                    Ok(Err(err)) => {
+                        self.current_screen = Screen::Error;
+                        self.error_message = Some(format!("Battery fetch failed: {}", err));
+                    }
+                    Err(_) => {
+                        self.current_screen = Screen::Error;
+                        self.error_message = Some("Battery fetch task panicked".to_string());
+                    }
+                }
+                self.battery_task = None;
             }
         }
     }
@@ -250,6 +277,18 @@ impl App {
                         Ok(_) => Ok(()),
                         Err(err) => Err(err),
                     }
+                }));
+            }
+        }
+    }
+
+    fn fetch_battery(&mut self) {
+        if self.current_screen == Screen::Connected {
+            if let Some(ref device) = self.connected_device {
+                self.status_message = "Fetching battery level...".to_string();
+                let device = device.clone();
+                self.battery_task = Some(tokio::spawn(async move {
+                    DeviceManager::get_battery_level(&device).await
                 }));
             }
         }
