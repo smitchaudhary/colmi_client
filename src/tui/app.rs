@@ -16,6 +16,7 @@ pub enum Screen {
     Connecting,
     Connected,
     Error,
+    ConfirmReset,
 }
 
 pub struct App {
@@ -72,8 +73,8 @@ impl App {
             KeyCode::Char('b') => self.fetch_battery(),
             KeyCode::Char('1') => self.blink_device(),
             KeyCode::Char('2') => self.find_device(),
-            KeyCode::Char('3') => self.reset_device(),
-            KeyCode::Char('4') => self.reboot_device(),
+            KeyCode::Char('3') => self.reboot_device(),
+            KeyCode::Char('4') => self.reset_device(),
             KeyCode::Up => self.handle_up(),
             KeyCode::Down => self.handle_down(),
             KeyCode::Enter => self.handle_enter(),
@@ -105,6 +106,10 @@ impl App {
             }
             Screen::Connected => {}
             Screen::Idle => {}
+            Screen::ConfirmReset => {
+                self.current_screen = Screen::Connected;
+                self.status_message = "Device reset cancelled".to_string();
+            }
         }
     }
 
@@ -324,19 +329,6 @@ impl App {
         }
     }
 
-    fn reset_device(&mut self) {
-        if self.current_screen == Screen::Connected {
-            if let Some(ref device) = self.connected_device {
-                self.status_message = "Resetting device...".to_string();
-                let device = device.clone();
-                self.operation_task =
-                    Some(tokio::spawn(
-                        async move { DeviceManager::reset(&device).await },
-                    ));
-            }
-        }
-    }
-
     fn reboot_device(&mut self) {
         if self.current_screen == Screen::Connected {
             if let Some(ref device) = self.connected_device {
@@ -346,6 +338,26 @@ impl App {
                     Some(tokio::spawn(
                         async move { DeviceManager::reboot(&device).await },
                     ));
+            }
+        }
+    }
+
+    fn reset_device(&mut self) {
+        if self.current_screen == Screen::Connected {
+            if self.connected_device.is_some() {
+                self.current_screen = Screen::ConfirmReset;
+                self.status_message = "Are you sure you want to reset the device?".to_string();
+            }
+        } else if self.current_screen == Screen::ConfirmReset {
+            if let Some(ref device) = self.connected_device {
+                self.status_message = "Resetting device...".to_string();
+                let device = device.clone();
+                self.operation_task =
+                    Some(tokio::spawn(
+                        async move { DeviceManager::reset(&device).await },
+                    ));
+
+                self.current_screen = Screen::Idle;
             }
         }
     }

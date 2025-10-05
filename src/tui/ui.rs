@@ -49,6 +49,7 @@ fn render_main_content(f: &mut Frame, area: Rect, app: &App) {
         Screen::Error => render_error_screen(f, area, app),
         Screen::Connecting => render_connecting_screen(f, area, app),
         Screen::Connected => render_connected_screen(f, area, app),
+        Screen::ConfirmReset => render_confirm_reset_screen(f, area, app),
     }
 }
 
@@ -283,7 +284,7 @@ fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
 
     content.push(Line::from(""));
     content.push(Line::from("Device Controls:"));
-    content.push(Line::from("[1] Blink  [2] Find  [3] Reset  [4] Reboot"));
+    content.push(Line::from("[1] Blink  [2] Find  [3] Reboot  [4] Reset"));
     content.push(Line::from(""));
 
     content.extend_from_slice(&[
@@ -310,6 +311,47 @@ fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(paragraph, area);
 }
 
+fn render_confirm_reset_screen(f: &mut Frame, area: Rect, app: &App) {
+    let device_name = app
+        .connected_device
+        .as_ref()
+        .map(|d| d.name())
+        .unwrap_or("device");
+
+    let content = vec![
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Confirm Reset",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from(format!("Reset {}?", device_name)),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled(
+                "[4]",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Confirm Reset"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("[ESC]", Style::default().fg(Color::Yellow)),
+            Span::raw(" Cancel"),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).alignment(Alignment::Center).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .title("Reset Confirmation")
+            .border_style(Style::default().fg(Color::Red)),
+    );
+
+    f.render_widget(paragraph, area);
+}
+
 fn render_footer(f: &mut Frame, area: Rect, app: &App) {
     let help_text = match app.current_screen {
         Screen::Idle => "[s] Scan | [q] Quit",
@@ -318,6 +360,7 @@ fn render_footer(f: &mut Frame, area: Rect, app: &App) {
         Screen::Error => "[ESC] Back",
         Screen::Connecting => "[ESC] Cancel | Connecting...",
         Screen::Connected => "[b] Battery | [q] Quit | Connected",
+        Screen::ConfirmReset => "[4] Confirm Reset | [ESC] Cancel",
     };
 
     let device_count = format!("Found: {} devices", app.devices.len());
