@@ -281,6 +281,11 @@ fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
         content.push(Line::from("🔋 Battery: Press [b] to check"));
     }
 
+    content.push(Line::from(""));
+    content.push(Line::from("Device Controls:"));
+    content.push(Line::from("[1] Blink  [2] Find  [3] Reset  [4] Reboot"));
+    content.push(Line::from(""));
+
     content.extend_from_slice(&[
         Line::from(""),
         Line::from(vec![

@@ -70,6 +70,10 @@ impl App {
             KeyCode::Esc => self.handle_escape(),
             KeyCode::Char('s') => self.start_scanning(),
             KeyCode::Char('b') => self.fetch_battery(),
+            KeyCode::Char('1') => self.blink_device(),
+            KeyCode::Char('2') => self.find_device(),
+            KeyCode::Char('3') => self.reset_device(),
+            KeyCode::Char('4') => self.reboot_device(),
             KeyCode::Up => self.handle_up(),
             KeyCode::Down => self.handle_down(),
             KeyCode::Enter => self.handle_enter(),
@@ -290,6 +294,58 @@ impl App {
                 self.battery_task = Some(tokio::spawn(async move {
                     DeviceManager::get_battery_level(&device).await
                 }));
+            }
+        }
+    }
+
+    fn blink_device(&mut self) {
+        if self.current_screen == Screen::Connected {
+            if let Some(ref device) = self.connected_device {
+                self.status_message = "Blinking device...".to_string();
+                let device = device.clone();
+                self.operation_task =
+                    Some(tokio::spawn(
+                        async move { DeviceManager::blink(&device).await },
+                    ));
+            }
+        }
+    }
+
+    fn find_device(&mut self) {
+        if self.current_screen == Screen::Connected {
+            if let Some(ref device) = self.connected_device {
+                self.status_message = "Finding device...".to_string();
+                let device = device.clone();
+                self.operation_task =
+                    Some(tokio::spawn(
+                        async move { DeviceManager::find(&device).await },
+                    ));
+            }
+        }
+    }
+
+    fn reset_device(&mut self) {
+        if self.current_screen == Screen::Connected {
+            if let Some(ref device) = self.connected_device {
+                self.status_message = "Resetting device...".to_string();
+                let device = device.clone();
+                self.operation_task =
+                    Some(tokio::spawn(
+                        async move { DeviceManager::reset(&device).await },
+                    ));
+            }
+        }
+    }
+
+    fn reboot_device(&mut self) {
+        if self.current_screen == Screen::Connected {
+            if let Some(ref device) = self.connected_device {
+                self.status_message = "Rebooting device...".to_string();
+                let device = device.clone();
+                self.operation_task =
+                    Some(tokio::spawn(
+                        async move { DeviceManager::reboot(&device).await },
+                    ));
             }
         }
     }
