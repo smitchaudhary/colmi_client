@@ -276,7 +276,7 @@ fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
             ),
             Span::raw(" "),
             Span::styled(battery_bar, get_battery_color(battery_level.charge_pct)),
-            Span::raw(format!("{}", charging_text)),
+            Span::raw(charging_text.to_string()),
         ]));
     } else {
         content.push(Line::from("🔋 Battery: Press [b] to check"));

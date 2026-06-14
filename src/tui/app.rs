@@ -155,109 +155,110 @@ impl App {
     }
 
     pub async fn update_operations(&mut self) {
-        if let Some(task) = &mut self.scan_task {
-            if task.is_finished() {
-                match task.await {
-                    Ok(Ok(devices)) => {
-                        self.devices = devices;
-                        self.current_screen = Screen::DeviceList;
-                        self.selected_device = if !self.devices.is_empty() {
-                            Some(0)
-                        } else {
-                            None
-                        };
-                        self.status_message = format!("Found {} devices", self.devices.len());
-                    }
-                    Ok(Err(error)) => {
-                        self.current_screen = Screen::Error;
-                        self.error_message = Some(format!("Scan failed: {}", error));
-                    }
-                    Err(_) => {
-                        self.current_screen = Screen::Error;
-                        self.error_message = Some("Scan task panicked".to_string());
-                    }
+        if let Some(task) = &mut self.scan_task
+            && task.is_finished()
+        {
+            match task.await {
+                Ok(Ok(devices)) => {
+                    self.devices = devices;
+                    self.current_screen = Screen::DeviceList;
+                    self.selected_device = if !self.devices.is_empty() {
+                        Some(0)
+                    } else {
+                        None
+                    };
+                    self.status_message = format!("Found {} devices", self.devices.len());
                 }
-                self.scan_task = None;
-                self.is_scanning = false;
+                Ok(Err(error)) => {
+                    self.current_screen = Screen::Error;
+                    self.error_message = Some(format!("Scan failed: {}", error));
+                }
+                Err(_) => {
+                    self.current_screen = Screen::Error;
+                    self.error_message = Some("Scan task panicked".to_string());
+                }
             }
+            self.scan_task = None;
+            self.is_scanning = false;
         }
 
-        if let Some(task) = &mut self.connection_task {
-            if task.is_finished() {
-                match task.await {
-                    Ok(Ok(_)) => {
-                        if let Some(selected) = self.selected_device {
-                            self.connected_device = Some(self.devices[selected].clone());
-                            self.current_screen = Screen::Connected;
-                            self.status_message = format!(
-                                "Connected to {}",
-                                self.connected_device.as_ref().unwrap().display_name()
-                            );
-                        }
-                    }
-                    Ok(Err(err)) => {
-                        self.current_screen = Screen::Error;
-                        self.error_message = Some(format!("Connection failed: {}", err));
-                    }
-                    Err(_) => {
-                        self.current_screen = Screen::Error;
-                        self.error_message = Some("Connection task panicked".to_string());
-                    }
-                }
-                self.connection_task = None;
-                self.connecting_device_name = None;
-                self.is_operation_in_progress = false;
-            }
-        }
-
-        if let Some(task) = &mut self.operation_task {
-            if task.is_finished() {
-                match task.await {
-                    Ok(Ok(_)) => {
-                        self.status_message = "Operation completed successfully".to_string();
-                    }
-                    Ok(Err(err)) => {
-                        self.current_screen = Screen::Error;
-                        self.error_message = Some(format!("Operation failed: {}", err));
-                    }
-                    Err(_) => {
-                        self.current_screen = Screen::Error;
-                        self.error_message = Some("Operation task panicked".to_string());
-                    }
-                }
-                self.operation_task = None;
-            }
-        }
-
-        if let Some(task) = &mut self.battery_task {
-            if task.is_finished() {
-                match task.await {
-                    Ok(Ok(battery_response)) => {
+        if let Some(task) = &mut self.connection_task
+            && task.is_finished()
+        {
+            match task.await {
+                Ok(Ok(_)) => {
+                    if let Some(selected) = self.selected_device {
+                        self.connected_device = Some(self.devices[selected].clone());
+                        self.current_screen = Screen::Connected;
                         self.status_message = format!(
-                            "Battery: {}% | Charging: {}",
-                            battery_response.charge_pct, battery_response.is_charging
+                            "Connected to {}",
+                            self.connected_device.as_ref().unwrap().display_name()
                         );
-                        self.battery_level = Some(battery_response);
-                    }
-                    Ok(Err(err)) => {
-                        self.current_screen = Screen::Error;
-                        self.error_message = Some(format!("Battery fetch failed: {}", err));
-                    }
-                    Err(_) => {
-                        self.current_screen = Screen::Error;
-                        self.error_message = Some("Battery fetch task panicked".to_string());
                     }
                 }
-                self.battery_task = None;
+                Ok(Err(err)) => {
+                    self.current_screen = Screen::Error;
+                    self.error_message = Some(format!("Connection failed: {}", err));
+                }
+                Err(_) => {
+                    self.current_screen = Screen::Error;
+                    self.error_message = Some("Connection task panicked".to_string());
+                }
             }
+            self.connection_task = None;
+            self.connecting_device_name = None;
+            self.is_operation_in_progress = false;
+        }
+
+        if let Some(task) = &mut self.operation_task
+            && task.is_finished()
+        {
+            match task.await {
+                Ok(Ok(_)) => {
+                    self.status_message = "Operation completed successfully".to_string();
+                }
+                Ok(Err(err)) => {
+                    self.current_screen = Screen::Error;
+                    self.error_message = Some(format!("Operation failed: {}", err));
+                }
+                Err(_) => {
+                    self.current_screen = Screen::Error;
+                    self.error_message = Some("Operation task panicked".to_string());
+                }
+            }
+            self.operation_task = None;
+        }
+
+        if let Some(task) = &mut self.battery_task
+            && task.is_finished()
+        {
+            match task.await {
+                Ok(Ok(battery_response)) => {
+                    self.status_message = format!(
+                        "Battery: {}% | Charging: {}",
+                        battery_response.charge_pct, battery_response.is_charging
+                    );
+                    self.battery_level = Some(battery_response);
+                }
+                Ok(Err(err)) => {
+                    self.current_screen = Screen::Error;
+                    self.error_message = Some(format!("Battery fetch failed: {}", err));
+                }
+                Err(_) => {
+                    self.current_screen = Screen::Error;
+                    self.error_message = Some("Battery fetch task panicked".to_string());
+                }
+            }
+            self.battery_task = None;
         }
     }
 
     fn handle_up(&mut self) {
-        if self.current_screen == Screen::DeviceList && !self.devices.is_empty() {
-            if let Some(selected) = self.selected_device {
-                self.selected_device = Some(selected.saturating_sub(1))
-            }
+        if self.current_screen == Screen::DeviceList
+            && !self.devices.is_empty()
+            && let Some(selected) = self.selected_device
+        {
+            self.selected_device = Some(selected.saturating_sub(1))
         }
     }
 
@@ -274,71 +275,69 @@ impl App {
     }
 
     fn handle_enter(&mut self) {
-        if self.current_screen == Screen::DeviceList {
-            if let Some(selected_device) = self.selected_device {
-                let device = self.devices[selected_device].clone();
-                self.status_message = format!("Selected: {}", device.display_name());
-                self.current_screen = Screen::Connecting;
-                self.is_operation_in_progress = true;
-                self.connecting_device_name = Some(device.display_name().to_string());
-                self.connection_task = Some(tokio::spawn(async move {
-                    match DeviceManager::connect_and_setup(&device).await {
-                        Ok(_) => Ok(()),
-                        Err(err) => Err(err),
-                    }
-                }));
-            }
+        if self.current_screen == Screen::DeviceList
+            && let Some(selected_device) = self.selected_device
+        {
+            let device = self.devices[selected_device].clone();
+            self.status_message = format!("Selected: {}", device.display_name());
+            self.current_screen = Screen::Connecting;
+            self.is_operation_in_progress = true;
+            self.connecting_device_name = Some(device.display_name().to_string());
+            self.connection_task = Some(tokio::spawn(async move {
+                match DeviceManager::connect_and_setup(&device).await {
+                    Ok(_) => Ok(()),
+                    Err(err) => Err(err),
+                }
+            }));
         }
     }
 
     fn fetch_battery(&mut self) {
-        if self.current_screen == Screen::Connected {
-            if let Some(ref device) = self.connected_device {
-                self.status_message = "Fetching battery level...".to_string();
-                let device = device.clone();
-                self.battery_task = Some(tokio::spawn(async move {
-                    DeviceManager::get_battery_level(&device).await
-                }));
-            }
+        if self.current_screen == Screen::Connected
+            && let Some(ref device) = self.connected_device
+        {
+            self.status_message = "Fetching battery level...".to_string();
+            let device = device.clone();
+            self.battery_task = Some(tokio::spawn(async move {
+                DeviceManager::get_battery_level(&device).await
+            }));
         }
     }
 
     fn blink_device(&mut self) {
-        if self.current_screen == Screen::Connected {
-            if let Some(ref device) = self.connected_device {
-                self.status_message = "Blinking device...".to_string();
-                let device = device.clone();
-                self.operation_task =
-                    Some(tokio::spawn(
-                        async move { DeviceManager::blink(&device).await },
-                    ));
-            }
+        if self.current_screen == Screen::Connected
+            && let Some(ref device) = self.connected_device
+        {
+            self.status_message = "Blinking device...".to_string();
+            let device = device.clone();
+            self.operation_task = Some(tokio::spawn(
+                async move { DeviceManager::blink(&device).await },
+            ));
         }
     }
 
     fn find_device(&mut self) {
-        if self.current_screen == Screen::Connected {
-            if let Some(ref device) = self.connected_device {
-                self.status_message = "Finding device...".to_string();
-                let device = device.clone();
-                self.operation_task =
-                    Some(tokio::spawn(
-                        async move { DeviceManager::find(&device).await },
-                    ));
-            }
+        if self.current_screen == Screen::Connected
+            && let Some(ref device) = self.connected_device
+        {
+            self.status_message = "Finding device...".to_string();
+            let device = device.clone();
+            self.operation_task = Some(tokio::spawn(
+                async move { DeviceManager::find(&device).await },
+            ));
         }
     }
 
     fn reboot_device(&mut self) {
-        if self.current_screen == Screen::Connected {
-            if let Some(ref device) = self.connected_device {
-                self.status_message = "Rebooting device...".to_string();
-                let device = device.clone();
-                self.operation_task =
-                    Some(tokio::spawn(
-                        async move { DeviceManager::reboot(&device).await },
-                    ));
-            }
+        if self.current_screen == Screen::Connected
+            && let Some(ref device) = self.connected_device
+        {
+            self.status_message = "Rebooting device...".to_string();
+            let device = device.clone();
+            self.operation_task =
+                Some(tokio::spawn(
+                    async move { DeviceManager::reboot(&device).await },
+                ));
         }
     }
 
@@ -348,17 +347,16 @@ impl App {
                 self.current_screen = Screen::ConfirmReset;
                 self.status_message = "Are you sure you want to reset the device?".to_string();
             }
-        } else if self.current_screen == Screen::ConfirmReset {
-            if let Some(ref device) = self.connected_device {
-                self.status_message = "Resetting device...".to_string();
-                let device = device.clone();
-                self.operation_task =
-                    Some(tokio::spawn(
-                        async move { DeviceManager::reset(&device).await },
-                    ));
+        } else if self.current_screen == Screen::ConfirmReset
+            && let Some(ref device) = self.connected_device
+        {
+            self.status_message = "Resetting device...".to_string();
+            let device = device.clone();
+            self.operation_task = Some(tokio::spawn(
+                async move { DeviceManager::reset(&device).await },
+            ));
 
-                self.current_screen = Screen::Idle;
-            }
+            self.current_screen = Screen::Idle;
         }
     }
 }

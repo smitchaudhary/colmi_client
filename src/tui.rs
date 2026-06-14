@@ -44,12 +44,11 @@ pub async fn run_tui() -> Result<(), TuiError> {
             .draw(|f| render_app(f, &app))
             .map_err(|e| TuiError::Rendering(e.to_string()))?;
 
-        if event::poll(tick_rate).map_err(|e| TuiError::EventHandling(e.to_string()))? {
-            if let Event::Key(key) =
+        if event::poll(tick_rate).map_err(|e| TuiError::EventHandling(e.to_string()))?
+            && let Event::Key(key) =
                 event::read().map_err(|e| TuiError::EventHandling(e.to_string()))?
-            {
-                app.handle_key_event(key);
-            }
+        {
+            app.handle_key_event(key);
         }
 
         if last_tick.elapsed() >= tick_rate {
