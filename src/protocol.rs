@@ -7,6 +7,7 @@ pub mod find;
 pub mod hr;
 pub mod reboot;
 pub mod reset;
+pub mod steps;
 
 pub const SERVICE_UUID: &str = "6e40fff0-b5a3-f393-e0a9-e50e24dcca9e";
 pub const WRITE_CHARACTERISTICS: &str = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";

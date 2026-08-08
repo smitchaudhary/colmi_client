@@ -7,6 +7,7 @@ use crate::devices::manager::DeviceManager;
 use crate::devices::models::Device;
 use crate::error::ScanError;
 use crate::protocol::hr::HeartRateResult;
+use crate::protocol::steps::StepsResult;
 use crate::tui;
 
 pub async fn scan(filter_colmi: bool) {
@@ -125,6 +126,52 @@ pub async fn hr(days: u32) {
                         Err(err) => {
                             println!("{}", err);
                         }
+                    }
+                }
+            }
+        }
+        Err(err) => println!("{}", err),
+    }
+}
+
+pub async fn steps(days: u32) {
+    match filter_devices(true).await {
+        Ok(devices) => {
+            println!("Found {} device(s):", devices.len());
+
+            if let Some(selected_device) = tui::select_device(devices) {
+                for day_offset in 0..days {
+                    match DeviceManager::get_steps(&selected_device, day_offset as i8).await {
+                        Ok(StepsResult::Details(details)) => {
+                            if details.is_empty() {
+                                println!("Day -{}: no activity", day_offset);
+                                continue;
+                            }
+                            let total_steps: u32 = details.iter().map(|d| d.steps as u32).sum();
+                            let total_calories: u32 = details.iter().map(|d| d.calories).sum();
+                            let total_distance: u32 =
+                                details.iter().map(|d| d.distance as u32).sum();
+                            let first = &details[0];
+                            let date = format!(
+                                "{:04}-{:02}-{:02}",
+                                first.year, first.month, first.day
+                            );
+                            let first_slot = details.iter().map(|d| d.time_index).min().unwrap();
+                            let last_slot = details.iter().map(|d| d.time_index).max().unwrap();
+                            let fmt_slot = |slot: u8| format!("{:02}:{:02}", slot / 4, (slot % 4) * 15);
+                            println!(
+                                "Day -{} ({}): {} steps, {} kcal, {} m, active {}–{}",
+                                day_offset,
+                                date,
+                                total_steps,
+                                total_calories,
+                                total_distance,
+                                fmt_slot(first_slot),
+                                fmt_slot(last_slot)
+                            );
+                        }
+                        Ok(StepsResult::NoData) => println!("Day -{}: no data", day_offset),
+                        Err(err) => println!("{}", err),
                     }
                 }
             }

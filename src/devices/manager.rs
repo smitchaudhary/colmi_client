@@ -17,6 +17,7 @@ use crate::{
         hr::{HeartRateLogParser, HeartRateRequest, HeartRateResult},
         reboot::RebootRequest,
         reset::ResetRequest,
+        steps::{ActivityDetailParser, StepsRequest, StepsResult},
     },
 };
 use crate::{devices::models::Device, protocol::features::FeatureResponse};
@@ -189,6 +190,52 @@ impl DeviceManager {
         Self::write_request(peripheral, &write_char, HeartRateRequest::new(timestamp)).await?;
 
         let mut parser = HeartRateLogParser::new();
+        let mut notifications = peripheral
+            .notifications()
+            .await
+            .map_err(|_| ConnectionError::SubscribeFailed)?;
+
+        let timeout_duration = Duration::from_millis(3000);
+
+        loop {
+            match timeout(timeout_duration, notifications.next()).await {
+                Ok(Some(notification)) => {
+                    if notification.uuid == notify_char.uuid {
+                        let packet = &notification.value;
+
+                        if crate::protocol::has_error_flag(packet) {
+                            return Err(DeviceError::Protocol(
+                                crate::error::ProtocolError::ErrorFlag {
+                                    command_id: packet[0],
+                                },
+                            ));
+                        }
+
+                        if let Some(result) = parser.feed(packet)? {
+                            return Ok(result);
+                        }
+                    }
+                }
+                Ok(None) => {
+                    return Err(DeviceError::StreamEnded);
+                }
+                Err(err) => {
+                    return Err(DeviceError::Timeout(err));
+                }
+            }
+        }
+    }
+
+    pub async fn get_steps(
+        device: &Device,
+        day_offset: i8,
+    ) -> Result<StepsResult, DeviceError> {
+        let (write_char, notify_char) = Self::connect_and_setup(device).await?;
+        let peripheral = device.peripheral();
+
+        Self::write_request(peripheral, &write_char, StepsRequest::new(day_offset)).await?;
+
+        let mut parser = ActivityDetailParser::new();
         let mut notifications = peripheral
             .notifications()
             .await
