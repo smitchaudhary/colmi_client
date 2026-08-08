@@ -9,6 +9,7 @@ pub mod hr;
 pub mod realtime;
 pub mod reboot;
 pub mod reset;
+pub mod settings;
 pub mod steps;
 
 pub const SERVICE_UUID: &str = "6e40fff0-b5a3-f393-e0a9-e50e24dcca9e";

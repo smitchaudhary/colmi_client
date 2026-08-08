@@ -44,5 +44,22 @@ pub enum Commands {
         #[arg(long, default_value_t = 60)]
         seconds: u64,
     },
+    Settings {
+        #[command(subcommand)]
+        command: SettingsCommands,
+    },
     Tui,
+}
+
+#[derive(Subcommand)]
+pub enum SettingsCommands {
+    /// Heart-rate logging settings.
+    Hr {
+        #[arg(long)]
+        enable: bool,
+        #[arg(long)]
+        disable: bool,
+        #[arg(long)]
+        interval: Option<u8>,
+    },
 }

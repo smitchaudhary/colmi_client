@@ -28,6 +28,13 @@ async fn main() {
         Commands::Realtime { r#type, seconds } => {
             cli::commands::realtime(&r#type, seconds).await
         }
+        Commands::Settings { command } => match command {
+            cli::SettingsCommands::Hr {
+                enable,
+                disable,
+                interval,
+            } => cli::commands::settings_hr(enable, disable, interval).await,
+        },
         Commands::Tui => {
             if let Err(err) = tui::run_tui().await {
                 eprintln!("TUI Error: {}", err);

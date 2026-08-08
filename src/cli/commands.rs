@@ -11,6 +11,7 @@ use crate::error::ScanError;
 use crate::protocol::bigdata::{sleep_phase_label, OxygenData, SleepData};
 use crate::protocol::hr::HeartRateResult;
 use crate::protocol::realtime::{RealtimeReading, ReadingType};
+use crate::protocol::settings::HeartRateLogSettings;
 use crate::protocol::steps::StepsResult;
 use crate::tui;
 
@@ -324,6 +325,43 @@ pub async fn realtime(reading_type: &str, seconds: u64) {
                     Ok(Ok(_)) => println!("Streaming finished"),
                     Ok(Err(err)) => println!("Streaming error: {}", err),
                     Err(_) => println!("Streaming task panicked"),
+                }
+            }
+        }
+        Err(err) => println!("{}", err),
+    }
+}
+
+pub async fn settings_hr(enable: bool, disable: bool, interval: Option<u8>) {
+    match filter_devices(true).await {
+        Ok(devices) => {
+            println!("Found {} device(s):", devices.len());
+
+            if let Some(selected_device) = tui::select_device(devices) {
+                if enable || disable {
+                    let interval = interval.unwrap_or(60);
+                    match DeviceManager::set_heart_rate_log_settings(
+                        &selected_device,
+                        enable,
+                        interval,
+                    )
+                    .await
+                    {
+                        Ok(_) => println!(
+                            "Heart-rate logging set: enabled={} interval={}m",
+                            enable, interval
+                        ),
+                        Err(err) => println!("{}", err),
+                    }
+                } else {
+                    match DeviceManager::get_heart_rate_log_settings(&selected_device).await {
+                        Ok(HeartRateLogSettings { enabled, interval }) => println!(
+                            "Heart-rate logging: {} | interval: {} minutes",
+                            if enabled { "enabled" } else { "disabled" },
+                            interval
+                        ),
+                        Err(err) => println!("{}", err),
+                    }
                 }
             }
         }

@@ -26,6 +26,7 @@ use crate::{
             RealtimeReading, RealtimeStartRequest, RealtimeStopRequest, ReadingType,
         },
         reset::ResetRequest,
+        settings::{HeartRateLogSettings, SettingsRequest, CMD_HEART_RATE_LOG_SETTINGS},
         steps::{ActivityDetailParser, StepsRequest, StepsResult},
     },
 };
@@ -217,6 +218,47 @@ impl DeviceManager {
         let result =
             Self::read_split_array(peripheral, &notify_char, |packet| parser.feed(packet)).await?;
         Ok(result)
+    }
+
+    pub async fn get_heart_rate_log_settings(
+        device: &Device,
+    ) -> Result<HeartRateLogSettings, DeviceError> {
+        let (write_char, notify_char) = Self::connect_and_setup(device).await?;
+        let peripheral = device.peripheral();
+
+        Self::write_request(peripheral, &write_char, SettingsRequest::read()).await?;
+        let response = Self::read_response_stream::<HeartRateLogSettings>(
+            peripheral,
+            &notify_char,
+            CMD_HEART_RATE_LOG_SETTINGS,
+            1000,
+        )
+        .await?;
+        Ok(response)
+    }
+
+    pub async fn set_heart_rate_log_settings(
+        device: &Device,
+        enabled: bool,
+        interval_minutes: u8,
+    ) -> Result<(), DeviceError> {
+        let (write_char, notify_char) = Self::connect_and_setup(device).await?;
+        let peripheral = device.peripheral();
+
+        Self::write_request(
+            peripheral,
+            &write_char,
+            SettingsRequest::write_heart_rate(enabled, interval_minutes),
+        )
+        .await?;
+        let _ = Self::read_response_stream::<HeartRateLogSettings>(
+            peripheral,
+            &notify_char,
+            CMD_HEART_RATE_LOG_SETTINGS,
+            1000,
+        )
+        .await?;
+        Ok(())
     }
 
     pub async fn get_sleep(device: &Device) -> Result<SleepData, DeviceError> {
