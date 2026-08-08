@@ -126,6 +126,14 @@ impl DeviceManager {
                     if notification.uuid == notify_char.uuid {
                         let packet = &notification.value;
 
+                        if crate::protocol::has_error_flag(packet) {
+                            return Err(DeviceError::Protocol(
+                                crate::error::ProtocolError::ErrorFlag {
+                                    command_id: packet[0],
+                                },
+                            ));
+                        }
+
                         if packet[0] == expected_command_id {
                             let response = R::from_bytes(packet.clone())?;
                             return Ok(response);

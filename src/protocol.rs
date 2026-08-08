@@ -41,6 +41,11 @@ pub trait Response {
     }
 
     fn validate_command_id(bytes: &[u8]) -> Result<(), ProtocolError> {
+        if has_error_flag(bytes) {
+            return Err(ProtocolError::ErrorFlag {
+                command_id: bytes[0],
+            });
+        }
         if bytes[0] != Self::EXPECTED_COMMAND_ID {
             return Err(ProtocolError::CommandId {
                 expected: Self::EXPECTED_COMMAND_ID,
@@ -54,6 +59,10 @@ pub trait Response {
 pub fn calculate_checksum(bytes: &[u8]) -> u8 {
     let sum: u32 = bytes[0..15].iter().map(|&b| b as u32).sum();
     (sum & 255) as u8
+}
+
+pub fn has_error_flag(bytes: &[u8]) -> bool {
+    bytes.first().is_some_and(|&b| b & 0x80 != 0)
 }
 
 pub fn to_bcd(value: u8) -> u8 {

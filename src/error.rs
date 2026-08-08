@@ -43,6 +43,9 @@ pub enum ProtocolError {
 
     #[error("Invalid command ID. Expected: {expected}, Actual: {actual}")]
     CommandId { expected: u8, actual: u8 },
+
+    #[error("Device reported an error flag on command {command_id}")]
+    ErrorFlag { command_id: u8 },
 }
 
 #[derive(Error, Debug)]
