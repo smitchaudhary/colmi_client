@@ -2,7 +2,8 @@ use crate::protocol::Request;
 
 pub struct RebootRequest {
     pub command_id: u8,
-    pub padding: [u8; 14],
+    pub data_1: u8,
+    pub padding: [u8; 13],
     pub checksum: u8,
 }
 
@@ -10,7 +11,8 @@ impl RebootRequest {
     pub fn new() -> Self {
         let mut req = Self {
             command_id: 8,
-            padding: [0; 14],
+            data_1: 1,
+            padding: [0; 13],
             checksum: 8,
         };
 
@@ -24,7 +26,8 @@ impl Request for RebootRequest {
     fn as_bytes(&self) -> [u8; 16] {
         let mut bytes: [u8; 16] = [0; 16];
         bytes[0] = self.command_id;
-        bytes[1..15].copy_from_slice(&self.padding);
+        bytes[1] = self.data_1;
+        bytes[2..15].copy_from_slice(&self.padding);
         bytes[15] = self.checksum;
 
         bytes
