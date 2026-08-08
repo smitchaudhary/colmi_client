@@ -6,7 +6,7 @@ use crate::bluetooth::scanner;
 use crate::devices::manager::DeviceManager;
 use crate::devices::models::Device;
 use crate::error::ScanError;
-use crate::protocol::bigdata::{sleep_phase_label, SleepData};
+use crate::protocol::bigdata::{sleep_phase_label, OxygenData, SleepData};
 use crate::protocol::hr::HeartRateResult;
 use crate::protocol::steps::StepsResult;
 use crate::tui;
@@ -218,6 +218,51 @@ pub async fn sleep() {
                                 for (label, minutes) in breakdown {
                                     println!("  {}: {}m", label, minutes);
                                 }
+                            }
+                        }
+                    }
+                    Err(err) => println!("{}", err),
+                }
+            }
+        }
+        Err(err) => println!("{}", err),
+    }
+}
+
+pub async fn spo2() {
+    match filter_devices(true).await {
+        Ok(devices) => {
+            println!("Found {} device(s):", devices.len());
+
+            if let Some(selected_device) = tui::select_device(devices) {
+                match DeviceManager::get_oxygen(&selected_device).await {
+                    Ok(OxygenData { days }) => {
+                        if days.is_empty() {
+                            println!("No blood-oxygen data available");
+                        } else {
+                            for day in &days {
+                                let valid: Vec<_> = day
+                                    .samples
+                                    .iter()
+                                    .filter(|s| s.min > 0 || s.max > 0)
+                                    .collect();
+                                if valid.is_empty() {
+                                    println!("SpO2 {} nights ago: no samples", day.days_ago);
+                                    continue;
+                                }
+                                let min_avg: u32 =
+                                    valid.iter().map(|s| s.min as u32).sum::<u32>()
+                                        / valid.len() as u32;
+                                let max_avg: u32 =
+                                    valid.iter().map(|s| s.max as u32).sum::<u32>()
+                                        / valid.len() as u32;
+                                println!(
+                                    "SpO2 {} nights ago: {} samples, avg range {}–{}%",
+                                    day.days_ago,
+                                    valid.len(),
+                                    min_avg,
+                                    max_avg
+                                );
                             }
                         }
                     }

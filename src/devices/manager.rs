@@ -14,8 +14,8 @@ use crate::{
         NOTIFY_CHARACTERISTICS, Request, Response, SERVICE_UUID, WRITE_CHARACTERISTICS,
         battery::{BatteryRequest, BatteryResponse},
         bigdata::{
-            SleepData, make_data_request, parse_big_data_header, parse_sleep_data,
-            DATA_REQUEST_ID_SLEEP,
+            OxygenData, SleepData, make_data_request, parse_big_data_header, parse_oxygen_data,
+            parse_sleep_data, DATA_REQUEST_ID_OXYGEN, DATA_REQUEST_ID_SLEEP,
         },
         blink::BlinkRequest,
         find::FindRequest,
@@ -231,6 +231,24 @@ impl DeviceManager {
         .await?;
 
         Ok(parse_sleep_data(&buffer)?)
+    }
+
+    pub async fn get_oxygen(device: &Device) -> Result<OxygenData, DeviceError> {
+        let (_write_char, _notify_char) = Self::connect_and_setup(device).await?;
+        let peripheral = device.peripheral();
+
+        let (data_write_char, data_notify_char) =
+            Self::find_data_characteristics(peripheral).await?;
+
+        let buffer = Self::read_big_data(
+            peripheral,
+            &data_write_char,
+            &data_notify_char,
+            DATA_REQUEST_ID_OXYGEN,
+        )
+        .await?;
+
+        Ok(parse_oxygen_data(&buffer)?)
     }
 
     async fn find_data_characteristics(

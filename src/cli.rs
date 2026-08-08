@@ -34,5 +34,6 @@ pub enum Commands {
         days: u32,
     },
     Sleep,
+    Spo2,
     Tui,
 }

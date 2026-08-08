@@ -2,6 +2,7 @@ use crate::error::ProtocolError;
 
 pub const BIG_DATA_MAGIC: u8 = 0xBC;
 pub const DATA_REQUEST_ID_SLEEP: u8 = 0x27;
+pub const DATA_REQUEST_ID_OXYGEN: u8 = 0x2A;
 
 pub fn make_data_request(data_id: u8) -> [u8; 6] {
     [BIG_DATA_MAGIC, data_id, 0x00, 0x00, 0xFF, 0xFF]
@@ -105,4 +106,54 @@ pub fn parse_sleep_data(bytes: &[u8]) -> Result<SleepData, ProtocolError> {
     }
 
     Ok(SleepData { days })
+}
+
+#[derive(Clone, Debug)]
+pub struct OxygenSample {
+    pub min: u8,
+    pub max: u8,
+}
+
+#[derive(Clone, Debug)]
+pub struct OxygenDay {
+    pub days_ago: u8,
+    /// One sample per hour, 24 samples per day.
+    pub samples: Vec<OxygenSample>,
+}
+
+#[derive(Clone, Debug)]
+pub struct OxygenData {
+    pub days: Vec<OxygenDay>,
+}
+
+pub fn parse_oxygen_data(bytes: &[u8]) -> Result<OxygenData, ProtocolError> {
+    let (id, _data_len) = parse_big_data_header(bytes)?;
+    if id != DATA_REQUEST_ID_OXYGEN {
+        return Err(ProtocolError::CommandId {
+            expected: DATA_REQUEST_ID_OXYGEN,
+            actual: id,
+        });
+    }
+
+    let data = &bytes[6..];
+    let mut days = Vec::new();
+
+    // Each day block is 1 (days-ago marker) + 24 * 2 (min/max pairs)
+    const DAY_BLOCK_SIZE: usize = 49;
+
+    let mut index = 0;
+    while index + DAY_BLOCK_SIZE <= data.len() {
+        let days_ago = data[index];
+        let mut samples = Vec::with_capacity(24);
+        for i in 0..24 {
+            samples.push(OxygenSample {
+                min: data[index + 1 + i * 2],
+                max: data[index + 2 + i * 2],
+            });
+        }
+        days.push(OxygenDay { days_ago, samples });
+        index += DAY_BLOCK_SIZE;
+    }
+
+    Ok(OxygenData { days })
 }
