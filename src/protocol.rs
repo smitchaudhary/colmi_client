@@ -55,3 +55,9 @@ pub fn calculate_checksum(bytes: &[u8]) -> u8 {
     let sum: u32 = bytes[0..15].iter().map(|&b| b as u32).sum();
     (sum & 255) as u8
 }
+
+pub fn to_bcd(value: u8) -> u8 {
+    let tens = value / 10;
+    let ones = value % 10;
+    (tens << 4) | ones
+}

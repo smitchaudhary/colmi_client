@@ -1,6 +1,6 @@
 use crate::error::ProtocolError;
-use crate::protocol::{Request, Response};
-use chrono::{Datelike, Local, Timelike};
+use crate::protocol::{Request, Response, to_bcd};
+use chrono::{Datelike, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 
 pub struct FeatureRequest {
@@ -11,7 +11,9 @@ pub struct FeatureRequest {
     pub hour: u8,
     pub minute: u8,
     pub seconds: u8,
-    pub padding: [u8; 8],
+    /// 0 = Chinese, 1 = English (all reference clients send 1).
+    pub language: u8,
+    pub padding: [u8; 7],
     pub checksum: u8,
 }
 
@@ -55,17 +57,22 @@ pub struct FeatureResponse {
 
 impl FeatureRequest {
     pub fn new() -> Self {
-        let now = Local::now();
+        // The ring expects UTC, not local time: its internal clock drives the
+        // timestamps attached to all history data (steps, HR log, sleep).
+        let now = Utc::now();
 
         let mut req = Self {
             command_id: 1,
-            year: (now.year() % 2000) as u8,
-            month: now.month() as u8,
-            day_of_month: now.day() as u8,
-            hour: now.hour() as u8,
-            minute: now.minute() as u8,
-            seconds: now.second() as u8,
-            padding: [0; 8],
+            // Time fields are binary-coded decimal, e.g. 25 -> 0x25. The old
+            // raw-decimal encoding silently set the ring's clock wrong.
+            year: to_bcd((now.year() % 2000) as u8),
+            month: to_bcd(now.month() as u8),
+            day_of_month: to_bcd(now.day() as u8),
+            hour: to_bcd(now.hour() as u8),
+            minute: to_bcd(now.minute() as u8),
+            seconds: to_bcd(now.second() as u8),
+            language: 1,
+            padding: [0; 7],
             checksum: 1,
         };
 
@@ -84,7 +91,8 @@ impl Request for FeatureRequest {
         bytes[4] = self.hour;
         bytes[5] = self.minute;
         bytes[6] = self.seconds;
-        bytes[7..15].copy_from_slice(&self.padding);
+        bytes[7] = self.language;
+        bytes[8..15].copy_from_slice(&self.padding);
         bytes[15] = self.checksum;
 
         bytes
@@ -93,7 +101,6 @@ impl Request for FeatureRequest {
 
 impl Response for FeatureResponse {
     const EXPECTED_COMMAND_ID: u8 = 1;
-
     fn from_bytes(bytes: Vec<u8>) -> Result<Self, ProtocolError> {
         Self::validate_command_id(&bytes)?;
         Self::verify_checksum(&bytes)?;
