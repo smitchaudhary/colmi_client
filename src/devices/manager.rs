@@ -190,40 +190,9 @@ impl DeviceManager {
         Self::write_request(peripheral, &write_char, HeartRateRequest::new(timestamp)).await?;
 
         let mut parser = HeartRateLogParser::new();
-        let mut notifications = peripheral
-            .notifications()
-            .await
-            .map_err(|_| ConnectionError::SubscribeFailed)?;
-
-        let timeout_duration = Duration::from_millis(3000);
-
-        loop {
-            match timeout(timeout_duration, notifications.next()).await {
-                Ok(Some(notification)) => {
-                    if notification.uuid == notify_char.uuid {
-                        let packet = &notification.value;
-
-                        if crate::protocol::has_error_flag(packet) {
-                            return Err(DeviceError::Protocol(
-                                crate::error::ProtocolError::ErrorFlag {
-                                    command_id: packet[0],
-                                },
-                            ));
-                        }
-
-                        if let Some(result) = parser.feed(packet)? {
-                            return Ok(result);
-                        }
-                    }
-                }
-                Ok(None) => {
-                    return Err(DeviceError::StreamEnded);
-                }
-                Err(err) => {
-                    return Err(DeviceError::Timeout(err));
-                }
-            }
-        }
+        let result =
+            Self::read_split_array(peripheral, &notify_char, |packet| parser.feed(packet)).await?;
+        Ok(result)
     }
 
     pub async fn get_steps(
@@ -236,6 +205,16 @@ impl DeviceManager {
         Self::write_request(peripheral, &write_char, StepsRequest::new(day_offset)).await?;
 
         let mut parser = ActivityDetailParser::new();
+        let result =
+            Self::read_split_array(peripheral, &notify_char, |packet| parser.feed(packet)).await?;
+        Ok(result)
+    }
+
+    async fn read_split_array<T>(
+        peripheral: &PlatformPeripheral,
+        notify_char: &Characteristic,
+        mut feed: impl FnMut(&[u8]) -> Result<Option<T>, crate::error::ProtocolError>,
+    ) -> Result<T, DeviceError> {
         let mut notifications = peripheral
             .notifications()
             .await
@@ -257,7 +236,7 @@ impl DeviceManager {
                             ));
                         }
 
-                        if let Some(result) = parser.feed(packet)? {
+                        if let Some(result) = feed(packet)? {
                             return Ok(result);
                         }
                     }
