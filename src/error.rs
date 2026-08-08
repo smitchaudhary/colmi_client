@@ -52,6 +52,12 @@ pub enum ProtocolError {
 
     #[error("Invalid big data magic. Expected: {expected}, Actual: {actual}")]
     InvalidMagic { expected: u8, actual: u8 },
+
+    #[error("Unknown real-time reading type: {0}")]
+    UnknownReadingType(u8),
+
+    #[error("Device reported error for reading type {reading_type} with code {code}")]
+    ReadingError { reading_type: u8, code: u8 },
 }
 
 #[derive(Error, Debug)]

@@ -35,5 +35,14 @@ pub enum Commands {
     },
     Sleep,
     Spo2,
+    /// Stream live readings for a few seconds.
+    Realtime {
+        /// Reading type: hr, spo2 or hrv.
+        #[arg(long, default_value = "hr")]
+        r#type: String,
+        /// Stream duration in seconds (values appear after ~30s warm-up).
+        #[arg(long, default_value_t = 60)]
+        seconds: u64,
+    },
     Tui,
 }

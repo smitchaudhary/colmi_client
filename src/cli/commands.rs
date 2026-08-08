@@ -1,5 +1,7 @@
 use inquire::Confirm;
 
+use std::time::Duration;
+
 use chrono::{Datelike, TimeZone, Utc};
 
 use crate::bluetooth::scanner;
@@ -8,6 +10,7 @@ use crate::devices::models::Device;
 use crate::error::ScanError;
 use crate::protocol::bigdata::{sleep_phase_label, OxygenData, SleepData};
 use crate::protocol::hr::HeartRateResult;
+use crate::protocol::realtime::{RealtimeReading, ReadingType};
 use crate::protocol::steps::StepsResult;
 use crate::tui;
 
@@ -267,6 +270,60 @@ pub async fn spo2() {
                         }
                     }
                     Err(err) => println!("{}", err),
+                }
+            }
+        }
+        Err(err) => println!("{}", err),
+    }
+}
+
+pub async fn realtime(reading_type: &str, seconds: u64) {
+    let reading_type = match reading_type {
+        "hr" | "heart-rate" => ReadingType::HeartRateBatch,
+        "spo2" | "blood-oxygen" => ReadingType::BloodOxygen,
+        "hrv" => ReadingType::Hrv,
+        other => {
+            println!("Unknown reading type '{}'. Use hr, spo2 or hrv.", other);
+            return;
+        }
+    };
+
+    match filter_devices(true).await {
+        Ok(devices) => {
+            println!("Found {} device(s):", devices.len());
+
+            if let Some(selected_device) = tui::select_device(devices) {
+                let (tx, mut rx) = tokio::sync::mpsc::channel::<RealtimeReading>(64);
+
+                let stream_task = tokio::spawn(async move {
+                    DeviceManager::stream_realtime(
+                        &selected_device,
+                        reading_type,
+                        Duration::from_secs(seconds),
+                        tx,
+                    )
+                    .await
+                });
+
+                println!(
+                    "Streaming {} for {}s (wear the ring; values appear after ~30s warm-up)...",
+                    reading_type.label(),
+                    seconds
+                );
+
+                while let Some(reading) = rx.recv().await {
+                    println!(
+                        "  {} = {} {}",
+                        reading.reading_type.label(),
+                        reading.value,
+                        reading.reading_type.unit()
+                    );
+                }
+
+                match stream_task.await {
+                    Ok(Ok(_)) => println!("Streaming finished"),
+                    Ok(Err(err)) => println!("Streaming error: {}", err),
+                    Err(_) => println!("Streaming task panicked"),
                 }
             }
         }

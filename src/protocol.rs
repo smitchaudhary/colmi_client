@@ -6,6 +6,7 @@ pub mod blink;
 pub mod features;
 pub mod find;
 pub mod hr;
+pub mod realtime;
 pub mod reboot;
 pub mod reset;
 pub mod steps;

@@ -5,6 +5,7 @@ use btleplug::{
     platform::Peripheral as PlatformPeripheral,
 };
 use futures_util::stream::StreamExt;
+use tokio::sync::mpsc;
 use tokio::time::timeout;
 
 use crate::{
@@ -21,6 +22,9 @@ use crate::{
         find::FindRequest,
         hr::{HeartRateLogParser, HeartRateRequest, HeartRateResult},
         reboot::RebootRequest,
+        realtime::{
+            RealtimeReading, RealtimeStartRequest, RealtimeStopRequest, ReadingType,
+        },
         reset::ResetRequest,
         steps::{ActivityDetailParser, StepsRequest, StepsResult},
     },
@@ -410,4 +414,70 @@ impl DeviceManager {
         Self::write_request(peripheral, &write_char, request).await?;
         Ok(())
     }
+
+    pub async fn stream_realtime(
+        device: &Device,
+        reading_type: ReadingType,
+        duration: Duration,
+        tx: mpsc::Sender<RealtimeReading>,
+    ) -> Result<(), DeviceError> {
+        let (write_char, notify_char) = Self::connect_and_setup(device).await?;
+        let peripheral = device.peripheral();
+
+        peripheral
+            .write(
+                &write_char,
+                &make_phone_info_packet(),
+                WriteType::WithoutResponse,
+            )
+            .await
+            .map_err(|_| ConnectionError::WriteFailed)?;
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        Self::write_request(peripheral, &write_char, RealtimeStartRequest::new(reading_type))
+            .await?;
+
+        let mut notifications = peripheral
+            .notifications()
+            .await
+            .map_err(|_| ConnectionError::SubscribeFailed)?;
+
+        let start = std::time::Instant::now();
+        loop {
+            let remaining = duration.saturating_sub(start.elapsed());
+            if remaining.is_zero() {
+                break;
+            }
+
+            match timeout(remaining, notifications.next()).await {
+                Ok(Some(notification)) => {
+                    if notification.uuid == notify_char.uuid
+                        && let Ok(reading) = RealtimeReading::from_bytes(&notification.value)
+                        && reading.reading_type == reading_type
+                        && reading.value != 0
+                        && tx.send(reading).await.is_err()
+                    {
+                        break;
+                    }
+                }
+                Ok(None) => break,
+                Err(_) => break,
+            }
+        }
+
+        let _ = Self::write_request(peripheral, &write_char, RealtimeStopRequest::new(reading_type))
+            .await;
+
+        Ok(())
+    }
+}
+
+fn make_phone_info_packet() -> [u8; 16] {
+    let mut packet = [0u8; 16];
+    packet[0] = 0x07;
+    packet[1] = 0x02;
+    packet[2] = 0x0A;
+    packet[3..15].copy_from_slice(b"colmi_client");
+    packet[15] = crate::protocol::calculate_checksum(&packet);
+    packet
 }
