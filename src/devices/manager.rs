@@ -10,8 +10,13 @@ use tokio::time::timeout;
 use crate::{
     config::manager::save_device_to_config,
     protocol::{
+        DATA_NOTIFY_CHARACTERISTICS, DATA_SERVICE_UUID, DATA_WRITE_CHARACTERISTICS,
         NOTIFY_CHARACTERISTICS, Request, Response, SERVICE_UUID, WRITE_CHARACTERISTICS,
         battery::{BatteryRequest, BatteryResponse},
+        bigdata::{
+            SleepData, make_data_request, parse_big_data_header, parse_sleep_data,
+            DATA_REQUEST_ID_SLEEP,
+        },
         blink::BlinkRequest,
         find::FindRequest,
         hr::{HeartRateLogParser, HeartRateRequest, HeartRateResult},
@@ -208,6 +213,114 @@ impl DeviceManager {
         let result =
             Self::read_split_array(peripheral, &notify_char, |packet| parser.feed(packet)).await?;
         Ok(result)
+    }
+
+    pub async fn get_sleep(device: &Device) -> Result<SleepData, DeviceError> {
+        let (_write_char, _notify_char) = Self::connect_and_setup(device).await?;
+        let peripheral = device.peripheral();
+
+        let (data_write_char, data_notify_char) =
+            Self::find_data_characteristics(peripheral).await?;
+
+        let buffer = Self::read_big_data(
+            peripheral,
+            &data_write_char,
+            &data_notify_char,
+            DATA_REQUEST_ID_SLEEP,
+        )
+        .await?;
+
+        Ok(parse_sleep_data(&buffer)?)
+    }
+
+    async fn find_data_characteristics(
+        peripheral: &PlatformPeripheral,
+    ) -> Result<(Characteristic, Characteristic), ConnectionError> {
+        for service in peripheral.services() {
+            if service.uuid.to_string() != DATA_SERVICE_UUID {
+                continue;
+            }
+
+            let mut write_char = None;
+            let mut notify_char = None;
+            for char in service.characteristics {
+                if char.uuid.to_string() == DATA_WRITE_CHARACTERISTICS {
+                    write_char = Some(char);
+                } else if char.uuid.to_string() == DATA_NOTIFY_CHARACTERISTICS {
+                    notify_char = Some(char);
+                }
+            }
+
+            if let (Some(write_char), Some(notify_char)) = (write_char, notify_char) {
+                return Ok((write_char, notify_char));
+            }
+        }
+
+        Err(ConnectionError::CharacteristicsNotFound)
+    }
+
+    async fn read_big_data(
+        peripheral: &PlatformPeripheral,
+        data_write_char: &Characteristic,
+        data_notify_char: &Characteristic,
+        data_id: u8,
+    ) -> Result<Vec<u8>, DeviceError> {
+        peripheral
+            .subscribe(data_notify_char)
+            .await
+            .map_err(|_| ConnectionError::SubscribeFailed)?;
+
+        peripheral
+            .write(
+                data_write_char,
+                &make_data_request(data_id),
+                WriteType::WithoutResponse,
+            )
+            .await
+            .map_err(|_| ConnectionError::WriteFailed)?;
+
+        let mut notifications = peripheral
+            .notifications()
+            .await
+            .map_err(|_| ConnectionError::SubscribeFailed)?;
+
+        let mut buffer: Vec<u8> = Vec::new();
+        let mut first_packet = true;
+
+        loop {
+            let timeout_duration = if first_packet {
+                Duration::from_millis(3000)
+            } else {
+                Duration::from_millis(400)
+            };
+
+            match timeout(timeout_duration, notifications.next()).await {
+                Ok(Some(notification)) => {
+                    if notification.uuid == data_notify_char.uuid {
+                        first_packet = false;
+                        buffer.extend_from_slice(&notification.value);
+                    }
+                }
+                Ok(None) => {
+                    return Err(DeviceError::StreamEnded);
+                }
+                Err(_) => {
+                    if buffer.is_empty() {
+                        return Err(DeviceError::BigDataTimeout);
+                    }
+                    let (id, _) = parse_big_data_header(&buffer)?;
+                    if id != data_id {
+                        return Err(DeviceError::Protocol(
+                            crate::error::ProtocolError::CommandId {
+                                expected: data_id,
+                                actual: id,
+                            },
+                        ));
+                    }
+                    return Ok(buffer);
+                }
+            }
+        }
     }
 
     async fn read_split_array<T>(

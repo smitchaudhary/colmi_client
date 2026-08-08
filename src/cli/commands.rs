@@ -6,6 +6,7 @@ use crate::bluetooth::scanner;
 use crate::devices::manager::DeviceManager;
 use crate::devices::models::Device;
 use crate::error::ScanError;
+use crate::protocol::bigdata::{sleep_phase_label, SleepData};
 use crate::protocol::hr::HeartRateResult;
 use crate::protocol::steps::StepsResult;
 use crate::tui;
@@ -173,6 +174,54 @@ pub async fn steps(days: u32) {
                         Ok(StepsResult::NoData) => println!("Day -{}: no data", day_offset),
                         Err(err) => println!("{}", err),
                     }
+                }
+            }
+        }
+        Err(err) => println!("{}", err),
+    }
+}
+
+pub async fn sleep() {
+    match filter_devices(true).await {
+        Ok(devices) => {
+            println!("Found {} device(s):", devices.len());
+
+            if let Some(selected_device) = tui::select_device(devices) {
+                match DeviceManager::get_sleep(&selected_device).await {
+                    Ok(SleepData { days }) => {
+                        if days.is_empty() {
+                            println!("No sleep data available");
+                        } else {
+                            for day in &days {
+                                let total: u16 = day.phases.iter().map(|p| p.minutes as u16).sum();
+                                println!(
+                                    "Sleep {} nights ago: {}h {:02}m ({}:{:02} → {}:{:02})",
+                                    day.days_ago,
+                                    total / 60,
+                                    total % 60,
+                                    day.start_minutes / 60,
+                                    day.start_minutes % 60,
+                                    day.end_minutes / 60,
+                                    day.end_minutes % 60
+                                );
+                                let mut breakdown: Vec<(&str, u16)> = Vec::new();
+                                for phase in &day.phases {
+                                    let label = sleep_phase_label(phase.phase_type);
+                                    if let Some(entry) =
+                                        breakdown.iter_mut().find(|(l, _)| *l == label)
+                                    {
+                                        entry.1 += phase.minutes as u16;
+                                    } else {
+                                        breakdown.push((label, phase.minutes as u16));
+                                    }
+                                }
+                                for (label, minutes) in breakdown {
+                                    println!("  {}: {}m", label, minutes);
+                                }
+                            }
+                        }
+                    }
+                    Err(err) => println!("{}", err),
                 }
             }
         }

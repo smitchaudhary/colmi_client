@@ -49,6 +49,9 @@ pub enum ProtocolError {
 
     #[error("Split-array response arrived out of order or incomplete")]
     MalformedSplitArray,
+
+    #[error("Invalid big data magic. Expected: {expected}, Actual: {actual}")]
+    InvalidMagic { expected: u8, actual: u8 },
 }
 
 #[derive(Error, Debug)]
@@ -61,6 +64,9 @@ pub enum DeviceError {
 
     #[error("Operation timed out: {0}")]
     Timeout(tokio::time::error::Elapsed),
+
+    #[error("Timed out waiting for big data response")]
+    BigDataTimeout,
 
     #[error("Notification stream ended unexpectedly")]
     StreamEnded,

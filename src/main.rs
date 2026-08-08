@@ -23,6 +23,7 @@ async fn main() {
         Commands::Find => cli::commands::find().await,
         Commands::Hr { days } => cli::commands::hr(days).await,
         Commands::Steps { days } => cli::commands::steps(days).await,
+        Commands::Sleep => cli::commands::sleep().await,
         Commands::Tui => {
             if let Err(err) = tui::run_tui().await {
                 eprintln!("TUI Error: {}", err);

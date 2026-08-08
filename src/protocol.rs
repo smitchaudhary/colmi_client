@@ -1,6 +1,7 @@
 use crate::error::ProtocolError;
 
 pub mod battery;
+pub mod bigdata;
 pub mod blink;
 pub mod features;
 pub mod find;
@@ -12,6 +13,10 @@ pub mod steps;
 pub const SERVICE_UUID: &str = "6e40fff0-b5a3-f393-e0a9-e50e24dcca9e";
 pub const WRITE_CHARACTERISTICS: &str = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 pub const NOTIFY_CHARACTERISTICS: &str = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+
+pub const DATA_SERVICE_UUID: &str = "de5bf728-d711-4e47-af26-65e3012a5dc7";
+pub const DATA_WRITE_CHARACTERISTICS: &str = "de5bf72a-d711-4e47-af26-65e3012a5dc7";
+pub const DATA_NOTIFY_CHARACTERISTICS: &str = "de5bf729-d711-4e47-af26-65e3012a5dc7";
 
 pub trait Request {
     fn as_bytes(&self) -> [u8; 16];

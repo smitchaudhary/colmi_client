@@ -33,5 +33,6 @@ pub enum Commands {
         #[arg(long, default_value_t = 1)]
         days: u32,
     },
+    Sleep,
     Tui,
 }
