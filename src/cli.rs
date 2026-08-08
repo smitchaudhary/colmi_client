@@ -21,6 +21,7 @@ pub enum Commands {
         all: bool,
     },
     Battery,
+    Info,
     Blink,
     Reset,
     Reboot,

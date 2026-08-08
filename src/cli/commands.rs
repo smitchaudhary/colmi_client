@@ -63,6 +63,26 @@ pub async fn battery() {
     }
 }
 
+pub async fn info() {
+    match filter_devices(true).await {
+        Ok(devices) => {
+            println!("Found {} device(s):", devices.len());
+
+            if let Some(selected_device) = tui::select_device(devices) {
+                match DeviceManager::get_device_info(&selected_device).await {
+                    Ok((firmware, hardware, manufacturer)) => {
+                        println!("Manufacturer: {}", manufacturer);
+                        println!("Firmware:     {}", firmware);
+                        println!("Hardware:     {}", hardware);
+                    }
+                    Err(err) => println!("{}", err),
+                }
+            }
+        }
+        Err(err) => println!("{}", err),
+    }
+}
+
 pub async fn blink() {
     match filter_devices(true).await {
         Ok(devices) => {

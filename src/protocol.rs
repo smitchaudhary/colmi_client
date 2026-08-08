@@ -20,6 +20,11 @@ pub const DATA_SERVICE_UUID: &str = "de5bf728-d711-4e47-af26-65e3012a5dc7";
 pub const DATA_WRITE_CHARACTERISTICS: &str = "de5bf72a-d711-4e47-af26-65e3012a5dc7";
 pub const DATA_NOTIFY_CHARACTERISTICS: &str = "de5bf729-d711-4e47-af26-65e3012a5dc7";
 
+pub const DEVICE_INFO_SERVICE_UUID: &str = "0000180a-0000-1000-8000-00805f9b34fb";
+pub const DEVICE_INFO_FIRMWARE_UUID: &str = "00002a26-0000-1000-8000-00805f9b34fb";
+pub const DEVICE_INFO_HARDWARE_UUID: &str = "00002a27-0000-1000-8000-00805f9b34fb";
+pub const DEVICE_INFO_MANUFACTURER_UUID: &str = "00002a29-0000-1000-8000-00805f9b34fb";
+
 pub trait Request {
     fn as_bytes(&self) -> [u8; 16];
 

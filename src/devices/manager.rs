@@ -12,7 +12,9 @@ use crate::{
     config::manager::save_device_to_config,
     protocol::{
         DATA_NOTIFY_CHARACTERISTICS, DATA_SERVICE_UUID, DATA_WRITE_CHARACTERISTICS,
-        NOTIFY_CHARACTERISTICS, Request, Response, SERVICE_UUID, WRITE_CHARACTERISTICS,
+        DEVICE_INFO_FIRMWARE_UUID, DEVICE_INFO_HARDWARE_UUID, DEVICE_INFO_MANUFACTURER_UUID,
+        DEVICE_INFO_SERVICE_UUID, NOTIFY_CHARACTERISTICS, Request, Response, SERVICE_UUID,
+        WRITE_CHARACTERISTICS,
         battery::{BatteryRequest, BatteryResponse},
         bigdata::{
             OxygenData, SleepData, make_data_request, parse_big_data_header, parse_oxygen_data,
@@ -218,6 +220,40 @@ impl DeviceManager {
         let result =
             Self::read_split_array(peripheral, &notify_char, |packet| parser.feed(packet)).await?;
         Ok(result)
+    }
+
+    pub async fn get_device_info(device: &Device) -> Result<(String, String, String), DeviceError> {
+        let (_write_char, _notify_char) = Self::connect(device).await?;
+        let peripheral = device.peripheral();
+
+        let firmware = Self::read_device_info_string(peripheral, DEVICE_INFO_FIRMWARE_UUID).await;
+        let hardware = Self::read_device_info_string(peripheral, DEVICE_INFO_HARDWARE_UUID).await;
+        let manufacturer =
+            Self::read_device_info_string(peripheral, DEVICE_INFO_MANUFACTURER_UUID).await;
+
+        Ok((firmware, hardware, manufacturer))
+    }
+
+    async fn read_device_info_string(peripheral: &PlatformPeripheral, char_uuid: &str) -> String {
+        for service in peripheral.services() {
+            if service.uuid.to_string() != DEVICE_INFO_SERVICE_UUID {
+                continue;
+            }
+
+            for char in service.characteristics {
+                if char.uuid.to_string() == char_uuid
+                    && let Ok(value) = peripheral.read(&char).await
+                {
+                    let text = String::from_utf8_lossy(&value);
+                    let trimmed = text.trim_end_matches('\0');
+                    if !trimmed.is_empty() {
+                        return trimmed.to_string();
+                    }
+                }
+            }
+        }
+
+        "unknown".to_string()
     }
 
     pub async fn get_heart_rate_log_settings(
