@@ -4,6 +4,7 @@ pub mod battery;
 pub mod blink;
 pub mod features;
 pub mod find;
+pub mod hr;
 pub mod reboot;
 pub mod reset;
 

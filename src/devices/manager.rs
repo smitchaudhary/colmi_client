@@ -14,6 +14,7 @@ use crate::{
         battery::{BatteryRequest, BatteryResponse},
         blink::BlinkRequest,
         find::FindRequest,
+        hr::{HeartRateLogParser, HeartRateRequest, HeartRateResult},
         reboot::RebootRequest,
         reset::ResetRequest,
     },
@@ -176,6 +177,52 @@ impl DeviceManager {
         let response = Self::read_response::<BatteryResponse>(peripheral, &notify_char).await?;
 
         Ok(response)
+    }
+
+    pub async fn get_heart_rate_log(
+        device: &Device,
+        timestamp: u32,
+    ) -> Result<HeartRateResult, DeviceError> {
+        let (write_char, notify_char) = Self::connect_and_setup(device).await?;
+        let peripheral = device.peripheral();
+
+        Self::write_request(peripheral, &write_char, HeartRateRequest::new(timestamp)).await?;
+
+        let mut parser = HeartRateLogParser::new();
+        let mut notifications = peripheral
+            .notifications()
+            .await
+            .map_err(|_| ConnectionError::SubscribeFailed)?;
+
+        let timeout_duration = Duration::from_millis(3000);
+
+        loop {
+            match timeout(timeout_duration, notifications.next()).await {
+                Ok(Some(notification)) => {
+                    if notification.uuid == notify_char.uuid {
+                        let packet = &notification.value;
+
+                        if crate::protocol::has_error_flag(packet) {
+                            return Err(DeviceError::Protocol(
+                                crate::error::ProtocolError::ErrorFlag {
+                                    command_id: packet[0],
+                                },
+                            ));
+                        }
+
+                        if let Some(result) = parser.feed(packet)? {
+                            return Ok(result);
+                        }
+                    }
+                }
+                Ok(None) => {
+                    return Err(DeviceError::StreamEnded);
+                }
+                Err(err) => {
+                    return Err(DeviceError::Timeout(err));
+                }
+            }
+        }
     }
 }
 

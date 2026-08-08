@@ -25,5 +25,9 @@ pub enum Commands {
     Reset,
     Reboot,
     Find,
+    Hr {
+        #[arg(long, default_value_t = 1)]
+        days: u32,
+    },
     Tui,
 }

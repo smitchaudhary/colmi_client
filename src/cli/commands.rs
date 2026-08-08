@@ -1,9 +1,12 @@
 use inquire::Confirm;
 
+use chrono::{Datelike, TimeZone, Utc};
+
 use crate::bluetooth::scanner;
 use crate::devices::manager::DeviceManager;
 use crate::devices::models::Device;
 use crate::error::ScanError;
+use crate::protocol::hr::HeartRateResult;
 use crate::tui;
 
 pub async fn scan(filter_colmi: bool) {
@@ -72,10 +75,68 @@ pub async fn blink() {
     }
 }
 
-pub async fn reset() {
+pub async fn hr(days: u32) {
     match filter_devices(true).await {
         Ok(devices) => {
             println!("Found {} device(s):", &devices.len());
+
+            if let Some(selected_device) = tui::select_device(devices) {
+                for day_offset in 0..days {
+                    let day = Utc::now() - chrono::Duration::days(day_offset as i64);
+                    let midnight = Utc
+                        .with_ymd_and_hms(day.year(), day.month(), day.day(), 0, 0, 0)
+                        .single()
+                        .unwrap_or(day);
+
+                    match DeviceManager::get_heart_rate_log(
+                        &selected_device,
+                        midnight.timestamp() as u32,
+                    )
+                    .await
+                    {
+                        Ok(HeartRateResult::Log(log)) => {
+                            let readings: Vec<u8> = log
+                                .heart_rates
+                                .iter()
+                                .copied()
+                                .filter(|&r| r > 0)
+                                .collect();
+                            if readings.is_empty() {
+                                println!("{}: no readings", midnight.format("%Y-%m-%d"));
+                            } else {
+                                let avg = readings.iter().map(|&r| r as u32).sum::<u32>()
+                                    / readings.len() as u32;
+                                let min = readings.iter().min().unwrap();
+                                let max = readings.iter().max().unwrap();
+                                println!(
+                                    "{}: {} readings, avg {} bpm ({} - {}), interval {}m",
+                                    midnight.format("%Y-%m-%d"),
+                                    readings.len(),
+                                    avg,
+                                    min,
+                                    max,
+                                    log.range
+                                );
+                            }
+                        }
+                        Ok(HeartRateResult::NoData) => {
+                            println!("{}: no data", midnight.format("%Y-%m-%d"));
+                        }
+                        Err(err) => {
+                            println!("{}", err);
+                        }
+                    }
+                }
+            }
+        }
+        Err(err) => println!("{}", err),
+    }
+}
+
+pub async fn reset() {
+    match filter_devices(true).await {
+        Ok(devices) => {
+            println!("Found {} device(s):", devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
                 match Confirm::new("This will reset the device. Continue?")

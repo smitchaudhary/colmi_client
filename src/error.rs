@@ -46,6 +46,9 @@ pub enum ProtocolError {
 
     #[error("Device reported an error flag on command {command_id}")]
     ErrorFlag { command_id: u8 },
+
+    #[error("Split-array response arrived out of order or incomplete")]
+    MalformedSplitArray,
 }
 
 #[derive(Error, Debug)]
