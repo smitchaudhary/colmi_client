@@ -250,7 +250,7 @@ impl App {
                 }
                 Ok(Err(error)) => {
                     self.current_screen = Screen::Error;
-                    self.error_message = Some(format!("Scan failed: {}", error));
+                    self.error_message = Some(format!("Scan failed: {error}"));
                 }
                 Err(_) => {
                     self.current_screen = Screen::Error;
@@ -281,7 +281,7 @@ impl App {
                 }
                 Ok(Err(err)) => {
                     self.current_screen = Screen::Error;
-                    self.error_message = Some(format!("Connection failed: {}", err));
+                    self.error_message = Some(format!("Connection failed: {err}"));
                 }
                 Err(_) => {
                     self.current_screen = Screen::Error;
@@ -302,7 +302,7 @@ impl App {
                 }
                 Ok(Err(err)) => {
                     self.current_screen = Screen::Error;
-                    self.error_message = Some(format!("Operation failed: {}", err));
+                    self.error_message = Some(format!("Operation failed: {err}"));
                 }
                 Err(_) => {
                     self.current_screen = Screen::Error;
@@ -325,7 +325,7 @@ impl App {
                 }
                 Ok(Err(err)) => {
                     self.current_screen = Screen::Error;
-                    self.error_message = Some(format!("Battery fetch failed: {}", err));
+                    self.error_message = Some(format!("Battery fetch failed: {err}"));
                 }
                 Err(_) => {
                     self.current_screen = Screen::Error;
@@ -343,7 +343,7 @@ impl App {
                     self.device_info = Some(device_info);
                 }
                 Ok(Err(err)) => {
-                    self.error_message = Some(format!("Device info fetch failed: {}", err));
+                    self.error_message = Some(format!("Device info fetch failed: {err}"));
                 }
                 Err(_) => {
                     self.error_message = Some("Device info task panicked".to_string());
@@ -360,7 +360,7 @@ impl App {
                     self.history = Some(history);
                 }
                 Ok(Err(err)) => {
-                    self.error_message = Some(format!("History fetch failed: {}", err));
+                    self.error_message = Some(format!("History fetch failed: {err}"));
                 }
                 Err(_) => {
                     self.error_message = Some("History task panicked".to_string());
@@ -374,7 +374,7 @@ impl App {
         {
             match task.await {
                 Ok(Ok(_)) => self.status_message = "Monitoring finished".to_string(),
-                Ok(Err(err)) => self.status_message = format!("Monitoring error: {}", err),
+                Ok(Err(err)) => self.status_message = format!("Monitoring error: {err}"),
                 Err(_) => self.status_message = "Monitoring task panicked".to_string(),
             }
             self.monitor_task = None;

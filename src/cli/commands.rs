@@ -23,7 +23,7 @@ pub async fn scan(filter_colmi: bool) {
                 println!("  {}. {}", i + 1, device.display_name());
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -35,16 +35,16 @@ pub async fn connect(filter_colmi: bool) {
             if let Some(selected_device) = tui::select_device(devices) {
                 match DeviceManager::connect_and_setup(&selected_device).await {
                     Ok(conn) => {
-                        println!("Connected and configured device: {}", selected_device);
+                        println!("Connected and configured device: {selected_device}");
                         let _ = &conn;
                     }
                     Err(err) => {
-                        println!("{}", err);
+                        println!("{err}");
                     }
                 };
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -56,14 +56,14 @@ pub async fn battery() {
             if let Some(selected_device) = tui::select_device(devices) {
                 match DeviceManager::connect_and_setup(&selected_device).await {
                     Ok(conn) => match DeviceManager::get_battery_level(&conn).await {
-                        Ok(response) => println!("{}", response),
-                        Err(err) => println!("{}", err),
+                        Ok(response) => println!("{response}"),
+                        Err(err) => println!("{err}"),
                     },
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -76,17 +76,17 @@ pub async fn info() {
                 match DeviceManager::connect_and_setup(&selected_device).await {
                     Ok(conn) => match DeviceManager::get_device_info(&conn).await {
                         Ok((firmware, hardware, manufacturer)) => {
-                            println!("Manufacturer: {}", manufacturer);
-                            println!("Firmware:     {}", firmware);
-                            println!("Hardware:     {}", hardware);
+                            println!("Manufacturer: {manufacturer}");
+                            println!("Firmware:     {firmware}");
+                            println!("Hardware:     {hardware}");
                         }
-                        Err(err) => println!("{}", err),
+                        Err(err) => println!("{err}"),
                     },
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -99,13 +99,13 @@ pub async fn blink() {
                 match DeviceManager::connect_and_setup(&selected_device).await {
                     Ok(conn) => match DeviceManager::blink(&conn).await {
                         Ok(_) => (),
-                        Err(err) => println!("{}", err),
+                        Err(err) => println!("{err}"),
                     },
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -159,16 +159,16 @@ pub async fn hr(days: u32) {
                                     println!("{}: no data", midnight.format("%Y-%m-%d"));
                                 }
                                 Err(err) => {
-                                    println!("{}", err);
+                                    println!("{err}");
                                 }
                             }
                         }
                     }
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -184,7 +184,7 @@ pub async fn steps(days: u32) {
                             match DeviceManager::get_steps(&conn, day_offset as i8).await {
                                 Ok(StepsResult::Details(details)) => {
                                     if details.is_empty() {
-                                        println!("Day -{}: no activity", day_offset);
+                                        println!("Day -{day_offset}: no activity");
                                         continue;
                                     }
                                     let total_steps: u32 =
@@ -216,16 +216,16 @@ pub async fn steps(days: u32) {
                                         fmt_slot(last_slot)
                                     );
                                 }
-                                Ok(StepsResult::NoData) => println!("Day -{}: no data", day_offset),
-                                Err(err) => println!("{}", err),
+                                Ok(StepsResult::NoData) => println!("Day -{day_offset}: no data"),
+                                Err(err) => println!("{err}"),
                             }
                         }
                     }
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -266,18 +266,18 @@ pub async fn sleep() {
                                         }
                                     }
                                     for (label, minutes) in breakdown {
-                                        println!("  {}: {}m", label, minutes);
+                                        println!("  {label}: {minutes}m");
                                     }
                                 }
                             }
                         }
-                        Err(err) => println!("{}", err),
+                        Err(err) => println!("{err}"),
                     },
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -319,13 +319,13 @@ pub async fn spo2() {
                                 }
                             }
                         }
-                        Err(err) => println!("{}", err),
+                        Err(err) => println!("{err}"),
                     },
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -335,7 +335,7 @@ pub async fn realtime(reading_type: &str, seconds: u64) {
         "spo2" | "blood-oxygen" => ReadingType::BloodOxygen,
         "hrv" => ReadingType::Hrv,
         other => {
-            println!("Unknown reading type '{}'. Use hr, spo2 or hrv.", other);
+            println!("Unknown reading type '{other}'. Use hr, spo2 or hrv.");
             return;
         }
     };
@@ -376,15 +376,15 @@ pub async fn realtime(reading_type: &str, seconds: u64) {
 
                         match stream_task.await {
                             Ok(Ok(_)) => println!("Streaming finished"),
-                            Ok(Err(err)) => println!("Streaming error: {}", err),
+                            Ok(Err(err)) => println!("Streaming error: {err}"),
                             Err(_) => println!("Streaming task panicked"),
                         }
                     }
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -404,10 +404,9 @@ pub async fn settings_hr(enable: bool, disable: bool, interval: Option<u8>) {
                             .await
                             {
                                 Ok(_) => println!(
-                                    "Heart-rate logging set: enabled={} interval={}m",
-                                    enable, interval
+                                    "Heart-rate logging set: enabled={enable} interval={interval}m"
                                 ),
-                                Err(err) => println!("{}", err),
+                                Err(err) => println!("{err}"),
                             }
                         } else {
                             match DeviceManager::get_heart_rate_log_settings(&conn).await {
@@ -416,15 +415,15 @@ pub async fn settings_hr(enable: bool, disable: bool, interval: Option<u8>) {
                                     if enabled { "enabled" } else { "disabled" },
                                     interval
                                 ),
-                                Err(err) => println!("{}", err),
+                                Err(err) => println!("{err}"),
                             }
                         }
                     }
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -443,22 +442,22 @@ pub async fn reset() {
                             Ok(true) => match DeviceManager::reset(&conn).await {
                                 Ok(_) => (),
                                 Err(err) => {
-                                    println!("{}", err);
+                                    println!("{err}");
                                 }
                             },
                             Ok(false) => {
                                 println!("Reset cancelled.");
                             }
                             Err(err) => {
-                                println!("{}", err);
+                                println!("{err}");
                             }
                         }
                     }
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -471,13 +470,13 @@ pub async fn reboot() {
                 match DeviceManager::connect_and_setup(&selected_device).await {
                     Ok(conn) => match DeviceManager::reboot(&conn).await {
                         Ok(_) => (),
-                        Err(err) => println!("{}", err),
+                        Err(err) => println!("{err}"),
                     },
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 
@@ -490,13 +489,13 @@ pub async fn find() {
                 match DeviceManager::connect_and_setup(&selected_device).await {
                     Ok(conn) => match DeviceManager::find(&conn).await {
                         Ok(_) => (),
-                        Err(err) => println!("{}", err),
+                        Err(err) => println!("{err}"),
                     },
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{err}"),
     }
 }
 

@@ -98,7 +98,7 @@ fn render_scanning_screen(f: &mut Frame, area: Rect, app: &App) {
     let content = vec![
         Line::from(""),
         Line::from(vec![Span::styled(
-            format!("Scanning... ({})s", elapsed),
+            format!("Scanning... ({elapsed})s"),
             Style::default()
                 .fg(Color::White)
                 .add_modifier(Modifier::BOLD),
@@ -205,7 +205,7 @@ fn render_connecting_screen(f: &mut Frame, area: Rect, app: &App) {
                 .add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
-        Line::from(format!("Connecting to {}...", device_name)),
+        Line::from(format!("Connecting to {device_name}...")),
         Line::from(""),
         Line::from(vec![Span::styled(
             "Press ESC to cancel",
@@ -339,8 +339,7 @@ fn render_live_tab(f: &mut Frame, area: Rect, app: &App) {
 
     if let Some((firmware, hardware, manufacturer)) = &app.device_info {
         content.push(Line::from(format!(
-            "{} | firmware {} | hw {}",
-            manufacturer, firmware, hardware
+            "{manufacturer} | firmware {firmware} | hw {hardware}"
         )));
     }
 
@@ -454,8 +453,7 @@ fn render_today_tab(f: &mut Frame, area: Rect, app: &App) {
                 let total_calories: f64 = details.iter().map(|d| d.calories).sum();
                 let total_distance: u32 = details.iter().map(|d| d.distance as u32).sum();
                 content.push(Line::from(format!(
-                    "  👟  Steps: {} | {:.0} kcal | {} m",
-                    total_steps, total_calories, total_distance
+                    "  👟  Steps: {total_steps} | {total_calories:.0} kcal | {total_distance} m"
                 )));
             }
             StepsResult::NoData => content.push(Line::from("  👟  Steps: no data")),
@@ -558,7 +556,7 @@ fn render_confirm_reset_screen(f: &mut Frame, area: Rect, app: &App) {
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
-        Line::from(format!("Reset {}?", device_name)),
+        Line::from(format!("Reset {device_name}?")),
         Line::from(""),
         Line::from(vec![
             Span::styled(
@@ -605,7 +603,7 @@ fn render_footer(f: &mut Frame, area: Rect, app: &App) {
         ),
         Span::styled(help_text, Style::default().fg(Color::Yellow)),
         Span::styled(
-            format!(" | {}", device_count),
+            format!(" | {device_count}"),
             Style::default().fg(Color::Green),
         ),
     ]);

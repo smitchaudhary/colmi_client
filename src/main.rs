@@ -36,7 +36,7 @@ async fn main() {
         },
         Commands::Tui => {
             if let Err(err) = tui::run_tui().await {
-                eprintln!("TUI Error: {}", err);
+                eprintln!("TUI Error: {err}");
             }
         }
     }
