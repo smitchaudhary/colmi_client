@@ -243,6 +243,26 @@ fn get_battery_color(charge_pct: u8) -> Style {
     })
 }
 
+fn render_sparkline(readings: &[crate::protocol::realtime::RealtimeReading]) -> String {
+    let window: Vec<u8> = readings.iter().rev().take(30).map(|r| r.value).collect();
+    let max = window.iter().copied().max().unwrap_or(1).max(1) as f32;
+    let mut line = String::new();
+    for &value in window.iter().rev() {
+        let blocks = ((value as f32 / max) * 8.0).round() as usize;
+        line.push(match blocks.clamp(1, 8) {
+            1 => '▁',
+            2 => '▂',
+            3 => '▃',
+            4 => '▄',
+            5 => '▅',
+            6 => '▆',
+            7 => '▇',
+            _ => '█',
+        });
+    }
+    line
+}
+
 fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
     let mut content = vec![
         Line::from(""),
@@ -290,6 +310,36 @@ fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
         ]));
     } else {
         content.push(Line::from("🔋 Battery: Press [b] to check"));
+    }
+
+    content.push(Line::from(""));
+    content.push(Line::from("Live:"));
+
+    if app.is_monitoring {
+        let elapsed = app
+            .monitor_started_at
+            .map(|t| t.elapsed().as_secs())
+            .unwrap_or(0);
+        content.push(Line::from(format!(
+            "  ● LIVE  {}s elapsed  |  {} readings  |  [l] stop",
+            elapsed,
+            app.live_readings.len()
+        )));
+        if let Some(latest) = app.live_readings.last() {
+            content.push(Line::from(format!(
+                "  Latest: {} {}",
+                latest.value,
+                latest.reading_type.unit()
+            )));
+            content.push(Line::from(format!(
+                "  {}",
+                render_sparkline(&app.live_readings)
+            )));
+        } else {
+            content.push(Line::from("  Warming up (~30s)..."));
+        }
+    } else {
+        content.push(Line::from("  Press [l] to start live heart-rate monitoring"));
     }
 
     content.push(Line::from(""));
@@ -447,7 +497,7 @@ fn render_footer(f: &mut Frame, area: Rect, app: &App) {
         Screen::DeviceList => "[↑/↓] Select | [ENTER] Choose | [ESC] Back | [s] Rescan",
         Screen::Error => "[ESC] Back",
         Screen::Connecting => "[ESC] Cancel | Connecting...",
-        Screen::Connected => "[b] Battery | [q] Quit | Connected",
+        Screen::Connected => "[l] Live HR | [h] Today | [b] Battery | [q] Quit",
         Screen::ConfirmReset => "[4] Confirm Reset | [ESC] Cancel",
     };
 

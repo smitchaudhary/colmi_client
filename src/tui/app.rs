@@ -6,13 +6,14 @@ use crate::{
         battery::BatteryResponse,
         bigdata::{OxygenData, SleepData},
         hr::HeartRateResult,
+        realtime::{RealtimeReading, ReadingType},
         steps::StepsResult,
     },
 };
 use crossterm::event::{KeyCode, KeyEvent};
 use chrono::{Datelike, TimeZone, Utc};
-use std::time::Instant;
-use tokio::task;
+use std::time::{Duration, Instant};
+use tokio::{sync::mpsc, task};
 
 type DeviceInfo = (String, String, String);
 type HistoryData = (HeartRateResult, StepsResult, SleepData, OxygenData);
@@ -55,6 +56,11 @@ pub struct App {
     pub device_info: Option<DeviceInfo>,
     pub history_task: Option<task::JoinHandle<Result<HistoryData, DeviceError>>>,
     pub history: Option<HistoryData>,
+    pub is_monitoring: bool,
+    pub live_readings: Vec<RealtimeReading>,
+    pub live_rx: Option<mpsc::Receiver<RealtimeReading>>,
+    pub monitor_task: Option<task::JoinHandle<Result<(), DeviceError>>>,
+    pub monitor_started_at: Option<Instant>,
 }
 
 impl App {
@@ -81,6 +87,11 @@ impl App {
             device_info: None,
             history_task: None,
             history: None,
+            is_monitoring: false,
+            live_readings: Vec::new(),
+            live_rx: None,
+            monitor_task: None,
+            monitor_started_at: None,
         }
     }
 
@@ -91,6 +102,7 @@ impl App {
             KeyCode::Char('s') => self.start_scanning(),
             KeyCode::Char('b') => self.fetch_battery(),
             KeyCode::Char('h') => self.fetch_history(),
+            KeyCode::Char('l') => self.toggle_monitoring(),
             KeyCode::Char('1') => self.blink_device(),
             KeyCode::Char('2') => self.find_device(),
             KeyCode::Char('3') => self.reboot_device(),
@@ -309,6 +321,26 @@ impl App {
             }
             self.history_task = None;
         }
+
+        if let Some(task) = &mut self.monitor_task
+            && task.is_finished()
+        {
+            let _ = task.await;
+            self.monitor_task = None;
+            self.live_rx = None;
+            self.is_monitoring = false;
+            self.monitor_started_at = None;
+            self.status_message = "Monitoring finished".to_string();
+        }
+
+        if let Some(rx) = &mut self.live_rx {
+            while let Ok(reading) = rx.try_recv() {
+                self.live_readings.push(reading);
+            }
+            if self.live_readings.len() > 50 {
+                self.live_readings.drain(..self.live_readings.len() - 50);
+            }
+        }
     }
 
     fn handle_up(&mut self) {
@@ -368,6 +400,50 @@ impl App {
                 DeviceManager::get_device_info(&conn).await
             }));
         }
+    }
+
+    fn toggle_monitoring(&mut self) {
+        if self.current_screen != Screen::Connected {
+            return;
+        }
+        if self.is_monitoring {
+            self.stop_monitoring();
+        } else {
+            self.start_monitoring();
+        }
+    }
+
+    fn start_monitoring(&mut self) {
+        if let Some(conn) = &self.connection {
+            self.status_message = "Monitoring heart rate...".to_string();
+            self.is_monitoring = true;
+            self.monitor_started_at = Some(Instant::now());
+            self.live_readings.clear();
+
+            let conn = conn.clone();
+            let (tx, rx) = mpsc::channel::<RealtimeReading>(64);
+            self.live_rx = Some(rx);
+            self.monitor_task = Some(tokio::spawn(async move {
+                DeviceManager::stream_realtime(
+                    &conn,
+                    ReadingType::HeartRateBatch,
+                    Duration::from_secs(600),
+                    tx,
+                )
+                .await
+            }));
+        }
+    }
+
+    fn stop_monitoring(&mut self) {
+        if let Some(task) = &mut self.monitor_task {
+            task.abort();
+        }
+        self.monitor_task = None;
+        self.live_rx = None;
+        self.is_monitoring = false;
+        self.monitor_started_at = None;
+        self.status_message = "Monitoring stopped".to_string();
     }
 
     fn fetch_history(&mut self) {
