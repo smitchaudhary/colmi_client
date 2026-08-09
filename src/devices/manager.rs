@@ -41,10 +41,18 @@ use crate::{
 pub struct DeviceManager;
 
 impl DeviceManager {
+    const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
+    const WRITE_TIMEOUT: Duration = Duration::from_secs(5);
+
     pub async fn connect_and_setup(
         device: &Device,
     ) -> Result<(Characteristic, Characteristic), DeviceError> {
-        let (write_char, notify_char) = Self::connect(device).await?;
+        let conn = match tokio::time::timeout(Self::CONNECT_TIMEOUT, Self::connect(device)).await {
+            Ok(result) => result?,
+            Err(err) => return Err(DeviceError::Timeout(err)),
+        };
+
+        let (write_char, notify_char) = conn;
 
         let write_char = write_char.ok_or(ConnectionError::CharacteristicsNotFound)?;
         let notify_char = notify_char.ok_or(ConnectionError::CharacteristicsNotFound)?;
@@ -102,11 +110,23 @@ impl DeviceManager {
         write_char: &Characteristic,
         request: impl Request,
     ) -> Result<(), ConnectionError> {
-        peripheral
-            .write(write_char, &request.as_bytes(), WriteType::WithoutResponse)
-            .await
-            .map_err(|_| ConnectionError::WriteFailed)?;
-        Ok(())
+        Self::write_with_timeout(peripheral, write_char, &request.as_bytes()).await
+    }
+
+    async fn write_with_timeout(
+        peripheral: &PlatformPeripheral,
+        write_char: &Characteristic,
+        bytes: &[u8],
+    ) -> Result<(), ConnectionError> {
+        match tokio::time::timeout(
+            Self::WRITE_TIMEOUT,
+            peripheral.write(write_char, bytes, WriteType::WithoutResponse),
+        )
+        .await
+        {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(_)) | Err(_) => Err(ConnectionError::WriteFailed),
+        }
     }
 
     pub async fn read_response<R: Response>(
@@ -370,14 +390,8 @@ impl DeviceManager {
             .await
             .map_err(|_| ConnectionError::SubscribeFailed)?;
 
-        peripheral
-            .write(
-                data_write_char,
-                &make_data_request(data_id),
-                WriteType::WithoutResponse,
-            )
-            .await
-            .map_err(|_| ConnectionError::WriteFailed)?;
+        Self::write_with_timeout(peripheral, data_write_char, &make_data_request(data_id))
+            .await?;
 
         let mut notifications = peripheral
             .notifications()
@@ -502,14 +516,7 @@ impl DeviceManager {
         let (write_char, notify_char) = Self::connect_and_setup(device).await?;
         let peripheral = device.peripheral();
 
-        peripheral
-            .write(
-                &write_char,
-                &make_phone_info_packet(),
-                WriteType::WithoutResponse,
-            )
-            .await
-            .map_err(|_| ConnectionError::WriteFailed)?;
+        Self::write_with_timeout(peripheral, &write_char, &make_phone_info_packet()).await?;
         tokio::time::sleep(Duration::from_millis(500)).await;
 
         Self::write_request(peripheral, &write_char, RealtimeStartRequest::new(reading_type))
