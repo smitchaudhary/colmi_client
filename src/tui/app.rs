@@ -2,13 +2,20 @@ use crate::{
     bluetooth::scanner,
     devices::{manager::Connection, manager::DeviceManager, models::Device},
     error::{DeviceError, ScanError},
-    protocol::battery::BatteryResponse,
+    protocol::{
+        battery::BatteryResponse,
+        bigdata::{OxygenData, SleepData},
+        hr::HeartRateResult,
+        steps::StepsResult,
+    },
 };
 use crossterm::event::{KeyCode, KeyEvent};
+use chrono::{Datelike, TimeZone, Utc};
 use std::time::Instant;
 use tokio::task;
 
 type DeviceInfo = (String, String, String);
+type HistoryData = (HeartRateResult, StepsResult, SleepData, OxygenData);
 
 #[derive(PartialEq, Debug)]
 pub enum Screen {
@@ -46,6 +53,8 @@ pub struct App {
     pub battery_level: Option<BatteryResponse>,
     pub device_info_task: Option<task::JoinHandle<Result<DeviceInfo, DeviceError>>>,
     pub device_info: Option<DeviceInfo>,
+    pub history_task: Option<task::JoinHandle<Result<HistoryData, DeviceError>>>,
+    pub history: Option<HistoryData>,
 }
 
 impl App {
@@ -70,6 +79,8 @@ impl App {
             battery_level: None,
             device_info_task: None,
             device_info: None,
+            history_task: None,
+            history: None,
         }
     }
 
@@ -79,6 +90,7 @@ impl App {
             KeyCode::Esc => self.handle_escape(),
             KeyCode::Char('s') => self.start_scanning(),
             KeyCode::Char('b') => self.fetch_battery(),
+            KeyCode::Char('h') => self.fetch_history(),
             KeyCode::Char('1') => self.blink_device(),
             KeyCode::Char('2') => self.find_device(),
             KeyCode::Char('3') => self.reboot_device(),
@@ -205,6 +217,7 @@ impl App {
                         );
                         self.fetch_battery();
                         self.fetch_device_info();
+                        self.fetch_history();
                     }
                 }
                 Ok(Err(err)) => {
@@ -279,6 +292,23 @@ impl App {
             }
             self.device_info_task = None;
         }
+
+        if let Some(task) = &mut self.history_task
+            && task.is_finished()
+        {
+            match task.await {
+                Ok(Ok(history)) => {
+                    self.history = Some(history);
+                }
+                Ok(Err(err)) => {
+                    self.error_message = Some(format!("History fetch failed: {}", err));
+                }
+                Err(_) => {
+                    self.error_message = Some("History task panicked".to_string());
+                }
+            }
+            self.history_task = None;
+        }
     }
 
     fn handle_up(&mut self) {
@@ -336,6 +366,29 @@ impl App {
             let conn = conn.clone();
             self.device_info_task = Some(tokio::spawn(async move {
                 DeviceManager::get_device_info(&conn).await
+            }));
+        }
+    }
+
+    fn fetch_history(&mut self) {
+        if self.current_screen == Screen::Connected
+            && self.history_task.is_none()
+            && let Some(conn) = &self.connection
+        {
+            self.status_message = "Fetching today's data...".to_string();
+            let conn = conn.clone();
+            self.history_task = Some(tokio::spawn(async move {
+                let day = Utc::now();
+                let midnight = Utc
+                    .with_ymd_and_hms(day.year(), day.month(), day.day(), 0, 0, 0)
+                    .single()
+                    .ok_or(DeviceError::StreamEnded)?;
+                let heart_rate =
+                    DeviceManager::get_heart_rate_log(&conn, midnight.timestamp() as u32).await?;
+                let steps = DeviceManager::get_steps(&conn, 0).await?;
+                let sleep = DeviceManager::get_sleep(&conn).await?;
+                let oxygen = DeviceManager::get_oxygen(&conn).await?;
+                Ok((heart_rate, steps, sleep, oxygen))
             }));
         }
     }

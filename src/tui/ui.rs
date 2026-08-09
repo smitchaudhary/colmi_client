@@ -6,7 +6,10 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Wrap},
 };
 
-use crate::tui::app::{App, Screen};
+use crate::{
+    protocol::{hr::HeartRateResult, steps::StepsResult},
+    tui::app::{App, Screen},
+};
 
 pub fn render_app(f: &mut Frame, app: &App) {
     let main_layout = Layout::default()
@@ -287,6 +290,84 @@ fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
         ]));
     } else {
         content.push(Line::from("🔋 Battery: Press [b] to check"));
+    }
+
+    content.push(Line::from(""));
+    content.push(Line::from("Today:"));
+
+    if let Some((heart_rate, steps, sleep, oxygen)) = &app.history {
+        match heart_rate {
+            HeartRateResult::Log(log) => {
+                let readings: Vec<u8> =
+                    log.heart_rates.iter().copied().filter(|&r| r > 0).collect();
+                if readings.is_empty() {
+                    content.push(Line::from("  🫀  Heart rate: no readings"));
+                } else {
+                    let avg = readings.iter().map(|&r| r as u32).sum::<u32>()
+                        / readings.len() as u32;
+                    let min = readings.iter().min().unwrap();
+                    let max = readings.iter().max().unwrap();
+                    content.push(Line::from(format!(
+                        "  🫀  Heart rate: {} readings, avg {} bpm ({} - {})",
+                        readings.len(),
+                        avg,
+                        min,
+                        max
+                    )));
+                }
+            }
+            HeartRateResult::NoData => content.push(Line::from("  🫀  Heart rate: no data")),
+        }
+
+        match steps {
+            StepsResult::Details(details) => {
+                let total_steps: u32 = details.iter().map(|d| d.steps as u32).sum();
+                let total_calories: u32 = details.iter().map(|d| d.calories).sum();
+                let total_distance: u32 = details.iter().map(|d| d.distance as u32).sum();
+                content.push(Line::from(format!(
+                    "  👟  Steps: {} | {} kcal | {} m",
+                    total_steps, total_calories, total_distance
+                )));
+            }
+            StepsResult::NoData => content.push(Line::from("  👟  Steps: no data")),
+        }
+
+        if let Some(day) = sleep.days.first() {
+            let total: u16 = day.phases.iter().map(|p| p.minutes as u16).sum();
+            content.push(Line::from(format!(
+                "  😴  Sleep: {}h {:02}m ({}:{:02} → {}:{:02})",
+                total / 60,
+                total % 60,
+                day.start_minutes / 60,
+                day.start_minutes % 60,
+                day.end_minutes / 60,
+                day.end_minutes % 60
+            )));
+        } else {
+            content.push(Line::from("  😴  Sleep: no data"));
+        }
+
+        if let Some(day) = oxygen.days.first() {
+            let valid: Vec<_> = day.samples.iter().filter(|s| s.min > 0 || s.max > 0).collect();
+            if valid.is_empty() {
+                content.push(Line::from("  🫁  SpO2: no samples"));
+            } else {
+                let min_avg: u32 =
+                    valid.iter().map(|s| s.min as u32).sum::<u32>() / valid.len() as u32;
+                let max_avg: u32 =
+                    valid.iter().map(|s| s.max as u32).sum::<u32>() / valid.len() as u32;
+                content.push(Line::from(format!(
+                    "  🫁  SpO2: {} samples, avg range {}–{}%",
+                    valid.len(),
+                    min_avg,
+                    max_avg
+                )));
+            }
+        } else {
+            content.push(Line::from("  🫁  SpO2: no data"));
+        }
+    } else {
+        content.push(Line::from("  Press [h] to fetch today's data"));
     }
 
     content.push(Line::from(""));

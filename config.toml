@@ -2,7 +2,7 @@ title = "Config for Colmi Client"
 
 [device_config]
 name = "R02_C902"
-address = "907da74e-8b0c-8d77-9d68-5ff92439761f"
+address = "ce6e0a60-7b62-4a0f-5b6e-16009ec5ac13"
 
 [device_config.features]
 command_id = 1
