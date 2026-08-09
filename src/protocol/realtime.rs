@@ -42,7 +42,7 @@ impl ReadingType {
 pub struct RealtimeStartRequest {
     pub command_id: u8,
     pub reading_type: ReadingType,
-    pub padding: [u8; 13],
+    pub padding: [u8; 12],
     pub checksum: u8,
 }
 
@@ -51,7 +51,7 @@ impl RealtimeStartRequest {
         let mut req = Self {
             command_id: CMD_START_REAL_TIME,
             reading_type,
-            padding: [0; 13],
+            padding: [0; 12],
             checksum: 0,
         };
         req.checksum = req.update_checksum();

@@ -372,12 +372,15 @@ impl App {
         if let Some(task) = &mut self.monitor_task
             && task.is_finished()
         {
-            let _ = task.await;
+            match task.await {
+                Ok(Ok(_)) => self.status_message = "Monitoring finished".to_string(),
+                Ok(Err(err)) => self.status_message = format!("Monitoring error: {}", err),
+                Err(_) => self.status_message = "Monitoring task panicked".to_string(),
+            }
             self.monitor_task = None;
             self.live_rx = None;
             self.is_monitoring = false;
             self.monitor_started_at = None;
-            self.status_message = "Monitoring finished".to_string();
         }
 
         if let Some(rx) = &mut self.live_rx {
