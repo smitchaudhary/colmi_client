@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::{
     protocol::{hr::HeartRateResult, steps::StepsResult},
-    tui::app::{App, Screen},
+    tui::app::{App, ConnectedTab, Screen},
 };
 
 pub fn render_app(f: &mut Frame, app: &App) {
@@ -263,7 +263,57 @@ fn render_sparkline(readings: &[crate::protocol::realtime::RealtimeReading]) -> 
     line
 }
 
+fn tab_style(active: bool) -> Style {
+    if active {
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Cyan)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Cyan)
+    }
+}
+
 fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
+    let tabs = Line::from(vec![
+        Span::styled(" Live ", tab_style(app.connected_tab == ConnectedTab::Live)),
+        Span::styled(" Today ", tab_style(app.connected_tab == ConnectedTab::Today)),
+        Span::styled(" Controls ", tab_style(app.connected_tab == ConnectedTab::Controls)),
+    ]);
+
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(0)])
+        .split(area);
+
+    f.render_widget(Paragraph::new(tabs).alignment(Alignment::Center), layout[0]);
+
+    match app.connected_tab {
+        ConnectedTab::Live => render_live_tab(f, layout[1], app),
+        ConnectedTab::Today => render_today_tab(f, layout[1], app),
+        ConnectedTab::Controls => render_controls_tab(f, layout[1], app),
+    }
+}
+
+fn render_status_and_footer(content: &mut Vec<Line<'static>>, app: &App) {
+    content.push(Line::from(""));
+    content.push(Line::from(vec![
+        Span::raw("Status: "),
+        Span::styled(
+            app.status_message.clone(),
+            Style::default().fg(Color::White),
+        ),
+    ]));
+    content.push(Line::from(""));
+    content.push(Line::from(vec![
+        Span::styled("TAB ", Style::default().fg(Color::Yellow)),
+        Span::raw("switch tab | "),
+        Span::styled("ESC ", Style::default().fg(Color::Yellow)),
+        Span::raw("disconnect"),
+    ]));
+}
+
+fn render_live_tab(f: &mut Frame, area: Rect, app: &App) {
     let mut content = vec![
         Line::from(""),
         Line::from(vec![Span::styled(
@@ -342,8 +392,29 @@ fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
         content.push(Line::from("  Press [l] to start live heart-rate monitoring"));
     }
 
-    content.push(Line::from(""));
-    content.push(Line::from("Today:"));
+    render_status_and_footer(&mut content, app);
+
+    let paragraph = Paragraph::new(content).alignment(Alignment::Center).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .title("Live"),
+    );
+
+    f.render_widget(paragraph, area);
+}
+
+fn render_today_tab(f: &mut Frame, area: Rect, app: &App) {
+    let mut content = vec![
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Today",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+    ];
 
     if let Some((heart_rate, steps, sleep, oxygen)) = &app.history {
         match heart_rate {
@@ -420,30 +491,42 @@ fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
         content.push(Line::from("  Press [h] to fetch today's data"));
     }
 
-    content.push(Line::from(""));
-    content.push(Line::from("Device Controls:"));
-    content.push(Line::from("[1] Blink  [2] Find  [3] Reboot  [4] Reset"));
-    content.push(Line::from(""));
-
-    content.extend_from_slice(&[
-        Line::from(""),
-        Line::from(vec![
-            Span::raw("Status: "),
-            Span::styled("Connected", Style::default().fg(Color::White)),
-        ]),
-        Line::from(""),
-        Line::from(""),
-        Line::from(vec![Span::styled(
-            "Press ESC to disconnect",
-            Style::default().fg(Color::Red),
-        )]),
-    ]);
+    render_status_and_footer(&mut content, app);
 
     let paragraph = Paragraph::new(content).alignment(Alignment::Center).block(
         Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .title("Connected"),
+            .title("Today"),
+    );
+
+    f.render_widget(paragraph, area);
+}
+
+fn render_controls_tab(f: &mut Frame, area: Rect, app: &App) {
+    let mut content = vec![
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Device Controls",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from("[1] Blink  [2] Find  [3] Reboot  [4] Reset"),
+        Line::from(""),
+        Line::from("[l] Live heart-rate monitoring"),
+        Line::from("[h] Refresh today's data"),
+        Line::from("[b] Refresh battery"),
+    ];
+
+    render_status_and_footer(&mut content, app);
+
+    let paragraph = Paragraph::new(content).alignment(Alignment::Center).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .title("Controls"),
     );
 
     f.render_widget(paragraph, area);

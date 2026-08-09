@@ -29,6 +29,13 @@ pub enum Screen {
     ConfirmReset,
 }
 
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum ConnectedTab {
+    Live,
+    Today,
+    Controls,
+}
+
 pub struct App {
     pub current_screen: Screen,
     pub should_quit: bool,
@@ -61,6 +68,7 @@ pub struct App {
     pub live_rx: Option<mpsc::Receiver<RealtimeReading>>,
     pub monitor_task: Option<task::JoinHandle<Result<(), DeviceError>>>,
     pub monitor_started_at: Option<Instant>,
+    pub connected_tab: ConnectedTab,
 }
 
 impl App {
@@ -92,6 +100,7 @@ impl App {
             live_rx: None,
             monitor_task: None,
             monitor_started_at: None,
+            connected_tab: ConnectedTab::Live,
         }
     }
 
@@ -103,6 +112,7 @@ impl App {
             KeyCode::Char('b') => self.fetch_battery(),
             KeyCode::Char('h') => self.fetch_history(),
             KeyCode::Char('l') => self.toggle_monitoring(),
+            KeyCode::Tab | KeyCode::Char('\t') => self.cycle_tab(),
             KeyCode::Char('1') => self.blink_device(),
             KeyCode::Char('2') => self.find_device(),
             KeyCode::Char('3') => self.reboot_device(),
@@ -400,6 +410,17 @@ impl App {
                 DeviceManager::get_device_info(&conn).await
             }));
         }
+    }
+
+    fn cycle_tab(&mut self) {
+        if self.current_screen != Screen::Connected {
+            return;
+        }
+        self.connected_tab = match self.connected_tab {
+            ConnectedTab::Live => ConnectedTab::Today,
+            ConnectedTab::Today => ConnectedTab::Controls,
+            ConnectedTab::Controls => ConnectedTab::Live,
+        };
     }
 
     fn toggle_monitoring(&mut self) {
