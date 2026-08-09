@@ -258,6 +258,13 @@ fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
         content.push(Line::from("Connected to device"));
     }
 
+    if let Some((firmware, hardware, manufacturer)) = &app.device_info {
+        content.push(Line::from(format!(
+            "{} | firmware {} | hw {}",
+            manufacturer, firmware, hardware
+        )));
+    }
+
     content.push(Line::from(""));
 
     if let Some(battery_level) = &app.battery_level {

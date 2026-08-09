@@ -8,6 +8,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 use std::time::Instant;
 use tokio::task;
 
+type DeviceInfo = (String, String, String);
+
 #[derive(PartialEq, Debug)]
 pub enum Screen {
     Idle,
@@ -42,6 +44,8 @@ pub struct App {
     pub operation_task: Option<task::JoinHandle<Result<(), DeviceError>>>,
     pub battery_task: Option<task::JoinHandle<Result<BatteryResponse, DeviceError>>>,
     pub battery_level: Option<BatteryResponse>,
+    pub device_info_task: Option<task::JoinHandle<Result<DeviceInfo, DeviceError>>>,
+    pub device_info: Option<DeviceInfo>,
 }
 
 impl App {
@@ -64,6 +68,8 @@ impl App {
             operation_task: None,
             battery_task: None,
             battery_level: None,
+            device_info_task: None,
+            device_info: None,
         }
     }
 
@@ -197,6 +203,8 @@ impl App {
                             "Connected to {}",
                             self.connected_device.as_ref().unwrap().display_name()
                         );
+                        self.fetch_battery();
+                        self.fetch_device_info();
                     }
                 }
                 Ok(Err(err)) => {
@@ -254,6 +262,23 @@ impl App {
             }
             self.battery_task = None;
         }
+
+        if let Some(task) = &mut self.device_info_task
+            && task.is_finished()
+        {
+            match task.await {
+                Ok(Ok(device_info)) => {
+                    self.device_info = Some(device_info);
+                }
+                Ok(Err(err)) => {
+                    self.error_message = Some(format!("Device info fetch failed: {}", err));
+                }
+                Err(_) => {
+                    self.error_message = Some("Device info task panicked".to_string());
+                }
+            }
+            self.device_info_task = None;
+        }
     }
 
     fn handle_up(&mut self) {
@@ -300,6 +325,17 @@ impl App {
             let conn = conn.clone();
             self.battery_task = Some(tokio::spawn(async move {
                 DeviceManager::get_battery_level(&conn).await
+            }));
+        }
+    }
+
+    fn fetch_device_info(&mut self) {
+        if self.current_screen == Screen::Connected
+            && let Some(conn) = &self.connection
+        {
+            let conn = conn.clone();
+            self.device_info_task = Some(tokio::spawn(async move {
+                DeviceManager::get_device_info(&conn).await
             }));
         }
     }
