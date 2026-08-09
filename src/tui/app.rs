@@ -6,12 +6,12 @@ use crate::{
         battery::BatteryResponse,
         bigdata::{OxygenData, SleepData},
         hr::HeartRateResult,
-        realtime::{RealtimeReading, ReadingType},
+        realtime::{ReadingType, RealtimeReading},
         steps::StepsResult,
     },
 };
-use crossterm::event::{KeyCode, KeyEvent};
 use chrono::{Datelike, TimeZone, Utc};
+use crossterm::event::{KeyCode, KeyEvent};
 use std::time::{Duration, Instant};
 use tokio::{sync::mpsc, task};
 

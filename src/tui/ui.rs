@@ -277,8 +277,14 @@ fn tab_style(active: bool) -> Style {
 fn render_connected_screen(f: &mut Frame, area: Rect, app: &App) {
     let tabs = Line::from(vec![
         Span::styled(" Live ", tab_style(app.connected_tab == ConnectedTab::Live)),
-        Span::styled(" Today ", tab_style(app.connected_tab == ConnectedTab::Today)),
-        Span::styled(" Controls ", tab_style(app.connected_tab == ConnectedTab::Controls)),
+        Span::styled(
+            " Today ",
+            tab_style(app.connected_tab == ConnectedTab::Today),
+        ),
+        Span::styled(
+            " Controls ",
+            tab_style(app.connected_tab == ConnectedTab::Controls),
+        ),
     ]);
 
     let layout = Layout::default()
@@ -389,7 +395,9 @@ fn render_live_tab(f: &mut Frame, area: Rect, app: &App) {
             content.push(Line::from("  Warming up (~30s)..."));
         }
     } else {
-        content.push(Line::from("  Press [l] to start live heart-rate monitoring"));
+        content.push(Line::from(
+            "  Press [l] to start live heart-rate monitoring",
+        ));
     }
 
     render_status_and_footer(&mut content, app);
@@ -424,8 +432,8 @@ fn render_today_tab(f: &mut Frame, area: Rect, app: &App) {
                 if readings.is_empty() {
                     content.push(Line::from("  🫀  Heart rate: no readings"));
                 } else {
-                    let avg = readings.iter().map(|&r| r as u32).sum::<u32>()
-                        / readings.len() as u32;
+                    let avg =
+                        readings.iter().map(|&r| r as u32).sum::<u32>() / readings.len() as u32;
                     let min = readings.iter().min().unwrap();
                     let max = readings.iter().max().unwrap();
                     content.push(Line::from(format!(
@@ -469,7 +477,11 @@ fn render_today_tab(f: &mut Frame, area: Rect, app: &App) {
         }
 
         if let Some(day) = oxygen.days.first() {
-            let valid: Vec<_> = day.samples.iter().filter(|s| s.min > 0 || s.max > 0).collect();
+            let valid: Vec<_> = day
+                .samples
+                .iter()
+                .filter(|s| s.min > 0 || s.max > 0)
+                .collect();
             if valid.is_empty() {
                 content.push(Line::from("  🫁  SpO2: no samples"));
             } else {

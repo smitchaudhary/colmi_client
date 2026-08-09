@@ -8,9 +8,9 @@ use crate::bluetooth::scanner;
 use crate::devices::manager::DeviceManager;
 use crate::devices::models::Device;
 use crate::error::ScanError;
-use crate::protocol::bigdata::{sleep_phase_label, OxygenData, SleepData};
+use crate::protocol::bigdata::{OxygenData, SleepData, sleep_phase_label};
 use crate::protocol::hr::HeartRateResult;
-use crate::protocol::realtime::{RealtimeReading, ReadingType};
+use crate::protocol::realtime::{ReadingType, RealtimeReading};
 use crate::protocol::settings::HeartRateLogSettings;
 use crate::protocol::steps::StepsResult;
 use crate::tui;
@@ -202,8 +202,9 @@ pub async fn steps(days: u32) {
                                         details.iter().map(|d| d.time_index).min().unwrap();
                                     let last_slot =
                                         details.iter().map(|d| d.time_index).max().unwrap();
-                                    let fmt_slot =
-                                        |slot: u8| format!("{:02}:{:02}", slot / 4, (slot % 4) * 15);
+                                    let fmt_slot = |slot: u8| {
+                                        format!("{:02}:{:02}", slot / 4, (slot % 4) * 15)
+                                    };
                                     println!(
                                         "Day -{} ({}): {} steps, {} kcal, {} m, active {}–{}",
                                         day_offset,
@@ -289,34 +290,34 @@ pub async fn spo2() {
                 match DeviceManager::connect_and_setup(&selected_device).await {
                     Ok(conn) => match DeviceManager::get_oxygen(&conn).await {
                         Ok(OxygenData { days }) => {
-                        if days.is_empty() {
-                            println!("No blood-oxygen data available");
-                        } else {
-                            for day in &days {
-                                let valid: Vec<_> = day
-                                    .samples
-                                    .iter()
-                                    .filter(|s| s.min > 0 || s.max > 0)
-                                    .collect();
-                                if valid.is_empty() {
-                                    println!("SpO2 {} nights ago: no samples", day.days_ago);
-                                    continue;
+                            if days.is_empty() {
+                                println!("No blood-oxygen data available");
+                            } else {
+                                for day in &days {
+                                    let valid: Vec<_> = day
+                                        .samples
+                                        .iter()
+                                        .filter(|s| s.min > 0 || s.max > 0)
+                                        .collect();
+                                    if valid.is_empty() {
+                                        println!("SpO2 {} nights ago: no samples", day.days_ago);
+                                        continue;
+                                    }
+                                    let min_avg: u32 =
+                                        valid.iter().map(|s| s.min as u32).sum::<u32>()
+                                            / valid.len() as u32;
+                                    let max_avg: u32 =
+                                        valid.iter().map(|s| s.max as u32).sum::<u32>()
+                                            / valid.len() as u32;
+                                    println!(
+                                        "SpO2 {} nights ago: {} samples, avg range {}–{}%",
+                                        day.days_ago,
+                                        valid.len(),
+                                        min_avg,
+                                        max_avg
+                                    );
                                 }
-                                let min_avg: u32 =
-                                    valid.iter().map(|s| s.min as u32).sum::<u32>()
-                                        / valid.len() as u32;
-                                let max_avg: u32 =
-                                    valid.iter().map(|s| s.max as u32).sum::<u32>()
-                                        / valid.len() as u32;
-                                println!(
-                                    "SpO2 {} nights ago: {} samples, avg range {}–{}%",
-                                    day.days_ago,
-                                    valid.len(),
-                                    min_avg,
-                                    max_avg
-                                );
                             }
-                        }
                         }
                         Err(err) => println!("{}", err),
                     },
@@ -398,9 +399,7 @@ pub async fn settings_hr(enable: bool, disable: bool, interval: Option<u8>) {
                         if enable || disable {
                             let interval = interval.unwrap_or(60);
                             match DeviceManager::set_heart_rate_log_settings(
-                                &conn,
-                                enable,
-                                interval,
+                                &conn, enable, interval,
                             )
                             .await
                             {

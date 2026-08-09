@@ -26,9 +26,7 @@ async fn main() {
         Commands::Steps { days } => cli::commands::steps(days).await,
         Commands::Sleep => cli::commands::sleep().await,
         Commands::Spo2 => cli::commands::spo2().await,
-        Commands::Realtime { r#type, seconds } => {
-            cli::commands::realtime(&r#type, seconds).await
-        }
+        Commands::Realtime { r#type, seconds } => cli::commands::realtime(&r#type, seconds).await,
         Commands::Settings { command } => match command {
             cli::SettingsCommands::Hr {
                 enable,
