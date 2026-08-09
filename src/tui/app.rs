@@ -1,6 +1,6 @@
 use crate::{
     bluetooth::scanner,
-    devices::{manager::DeviceManager, models::Device},
+    devices::{manager::Connection, manager::DeviceManager, models::Device},
     error::{DeviceError, ScanError},
     protocol::battery::BatteryResponse,
 };
@@ -36,8 +36,9 @@ pub struct App {
     pub connecting_device_name: Option<String>,
 
     pub connected_device: Option<Device>,
+    pub connection: Option<Connection>,
     pub is_operation_in_progress: bool,
-    pub connection_task: Option<task::JoinHandle<Result<(), DeviceError>>>,
+    pub connection_task: Option<task::JoinHandle<Result<Connection, DeviceError>>>,
     pub operation_task: Option<task::JoinHandle<Result<(), DeviceError>>>,
     pub battery_task: Option<task::JoinHandle<Result<BatteryResponse, DeviceError>>>,
     pub battery_level: Option<BatteryResponse>,
@@ -57,6 +58,7 @@ impl App {
             scan_task: None,
             connecting_device_name: None,
             connected_device: None,
+            connection: None,
             is_operation_in_progress: false,
             connection_task: None,
             operation_task: None,
@@ -186,9 +188,10 @@ impl App {
             && task.is_finished()
         {
             match task.await {
-                Ok(Ok(_)) => {
+                Ok(Ok(connection)) => {
                     if let Some(selected) = self.selected_device {
                         self.connected_device = Some(self.devices[selected].clone());
+                        self.connection = Some(connection);
                         self.current_screen = Screen::Connected;
                         self.status_message = format!(
                             "Connected to {}",
@@ -284,91 +287,73 @@ impl App {
             self.is_operation_in_progress = true;
             self.connecting_device_name = Some(device.display_name().to_string());
             self.connection_task = Some(tokio::spawn(async move {
-                match DeviceManager::connect_and_setup(&device).await {
-                    Ok(_) => Ok(()),
-                    Err(err) => Err(err),
-                }
+                DeviceManager::connect_and_setup(&device).await
             }));
         }
     }
 
     fn fetch_battery(&mut self) {
         if self.current_screen == Screen::Connected
-            && let Some(ref device) = self.connected_device
+            && let Some(conn) = &self.connection
         {
             self.status_message = "Fetching battery level...".to_string();
-            let device = device.clone();
+            let conn = conn.clone();
             self.battery_task = Some(tokio::spawn(async move {
-                match DeviceManager::connect_and_setup(&device).await {
-                    Ok(conn) => DeviceManager::get_battery_level(&conn).await,
-                    Err(err) => Err(err),
-                }
+                DeviceManager::get_battery_level(&conn).await
             }));
         }
     }
 
     fn blink_device(&mut self) {
         if self.current_screen == Screen::Connected
-            && let Some(ref device) = self.connected_device
+            && let Some(conn) = &self.connection
         {
             self.status_message = "Blinking device...".to_string();
-            let device = device.clone();
-            self.operation_task = Some(tokio::spawn(async move {
-                match DeviceManager::connect_and_setup(&device).await {
-                    Ok(conn) => DeviceManager::blink(&conn).await,
-                    Err(err) => Err(err),
-                }
-            }));
+            let conn = conn.clone();
+            self.operation_task = Some(tokio::spawn(
+                async move { DeviceManager::blink(&conn).await },
+            ));
         }
     }
 
     fn find_device(&mut self) {
         if self.current_screen == Screen::Connected
-            && let Some(ref device) = self.connected_device
+            && let Some(conn) = &self.connection
         {
             self.status_message = "Finding device...".to_string();
-            let device = device.clone();
-            self.operation_task = Some(tokio::spawn(async move {
-                match DeviceManager::connect_and_setup(&device).await {
-                    Ok(conn) => DeviceManager::find(&conn).await,
-                    Err(err) => Err(err),
-                }
-            }));
+            let conn = conn.clone();
+            self.operation_task = Some(tokio::spawn(
+                async move { DeviceManager::find(&conn).await },
+            ));
         }
     }
 
     fn reboot_device(&mut self) {
         if self.current_screen == Screen::Connected
-            && let Some(ref device) = self.connected_device
+            && let Some(conn) = &self.connection
         {
             self.status_message = "Rebooting device...".to_string();
-            let device = device.clone();
-            self.operation_task = Some(tokio::spawn(async move {
-                match DeviceManager::connect_and_setup(&device).await {
-                    Ok(conn) => DeviceManager::reboot(&conn).await,
-                    Err(err) => Err(err),
-                }
-            }));
+            let conn = conn.clone();
+            self.operation_task = Some(tokio::spawn(
+                async move { DeviceManager::reboot(&conn).await },
+            ));
         }
     }
 
     fn reset_device(&mut self) {
         if self.current_screen == Screen::Connected {
-            if self.connected_device.is_some() {
+            if self.connection.is_some() {
                 self.current_screen = Screen::ConfirmReset;
                 self.status_message = "Are you sure you want to reset the device?".to_string();
             }
         } else if self.current_screen == Screen::ConfirmReset
-            && let Some(ref device) = self.connected_device
+            && let Some(conn) = &self.connection
         {
             self.status_message = "Resetting device...".to_string();
-            let device = device.clone();
-            self.operation_task = Some(tokio::spawn(async move {
-                match DeviceManager::connect_and_setup(&device).await {
-                    Ok(conn) => DeviceManager::reset(&conn).await,
-                    Err(err) => Err(err),
-                }
-            }));
+            let conn = conn.clone();
+            self.operation_task = Some(tokio::spawn(
+                async move { DeviceManager::reset(&conn).await },
+            ));
 
             self.current_screen = Screen::Idle;
         }
