@@ -30,7 +30,7 @@ pub async fn scan(filter_colmi: bool) {
 pub async fn connect(filter_colmi: bool) {
     match filter_devices(filter_colmi).await {
         Ok(devices) => {
-            println!("Found {} device(s):", &devices.len());
+            println!("Found {} device(s):", devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
                 match DeviceManager::connect_and_setup(&selected_device).await {
@@ -51,7 +51,7 @@ pub async fn connect(filter_colmi: bool) {
 pub async fn battery() {
     match filter_devices(true).await {
         Ok(devices) => {
-            println!("Found {} device(s):", &devices.len());
+            println!("Found {} device(s):", devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
                 match DeviceManager::connect_and_setup(&selected_device).await {
@@ -93,7 +93,7 @@ pub async fn info() {
 pub async fn blink() {
     match filter_devices(true).await {
         Ok(devices) => {
-            println!("Found {} device(s):", &devices.len());
+            println!("Found {} device(s):", devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
                 match DeviceManager::connect_and_setup(&selected_device).await {
@@ -112,7 +112,7 @@ pub async fn blink() {
 pub async fn hr(days: u32) {
     match filter_devices(true).await {
         Ok(devices) => {
-            println!("Found {} device(s):", &devices.len());
+            println!("Found {} device(s):", devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
                 match DeviceManager::connect_and_setup(&selected_device).await {
@@ -465,7 +465,7 @@ pub async fn reset() {
 pub async fn reboot() {
     match filter_devices(true).await {
         Ok(devices) => {
-            println!("Found {} device(s):", &devices.len());
+            println!("Found {} device(s):", devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
                 match DeviceManager::connect_and_setup(&selected_device).await {
@@ -484,7 +484,7 @@ pub async fn reboot() {
 pub async fn find() {
     match filter_devices(true).await {
         Ok(devices) => {
-            println!("Found {} device(s):", &devices.len());
+            println!("Found {} device(s):", devices.len());
 
             if let Some(selected_device) = tui::select_device(devices) {
                 match DeviceManager::connect_and_setup(&selected_device).await {
