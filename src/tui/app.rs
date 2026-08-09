@@ -146,13 +146,50 @@ impl App {
                 self.current_screen = Screen::Idle;
                 self.status_message = "Connection cancelled".to_string();
             }
-            Screen::Connected => {}
+            Screen::Connected => {
+                self.disconnect();
+            }
             Screen::Idle => {}
             Screen::ConfirmReset => {
                 self.current_screen = Screen::Connected;
                 self.status_message = "Device reset cancelled".to_string();
             }
         }
+    }
+
+    fn disconnect(&mut self) {
+        if let Some(task) = &mut self.monitor_task {
+            task.abort();
+        }
+        self.monitor_task = None;
+        self.live_rx = None;
+        self.is_monitoring = false;
+        self.monitor_started_at = None;
+        if let Some(task) = &mut self.operation_task {
+            task.abort();
+        }
+        self.operation_task = None;
+        if let Some(task) = &mut self.battery_task {
+            task.abort();
+        }
+        self.battery_task = None;
+        if let Some(task) = &mut self.history_task {
+            task.abort();
+        }
+        self.history_task = None;
+        if let Some(task) = &mut self.device_info_task {
+            task.abort();
+        }
+        self.device_info_task = None;
+
+        self.connection = None;
+        self.connected_device = None;
+        self.battery_level = None;
+        self.device_info = None;
+        self.history = None;
+        self.connected_tab = ConnectedTab::Live;
+        self.current_screen = Screen::Idle;
+        self.status_message = "Disconnected".to_string();
     }
 
     fn cancel_connection(&mut self) {
