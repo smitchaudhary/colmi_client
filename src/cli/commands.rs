@@ -189,7 +189,7 @@ pub async fn steps(days: u32) {
                                     }
                                     let total_steps: u32 =
                                         details.iter().map(|d| d.steps as u32).sum();
-                                    let total_calories: u32 =
+                                    let total_calories: f64 =
                                         details.iter().map(|d| d.calories).sum();
                                     let total_distance: u32 =
                                         details.iter().map(|d| d.distance as u32).sum();
@@ -206,7 +206,7 @@ pub async fn steps(days: u32) {
                                         format!("{:02}:{:02}", slot / 4, (slot % 4) * 15)
                                     };
                                     println!(
-                                        "Day -{} ({}): {} steps, {} kcal, {} m, active {}–{}",
+                                        "Day -{} ({}): {} steps, {:.0} kcal, {} m, active {}–{}",
                                         day_offset,
                                         date,
                                         total_steps,

@@ -44,7 +44,7 @@ pub struct ActivityDetail {
     pub day: u8,
     /// 15-minute slot index within the day (0-95).
     pub time_index: u8,
-    pub calories: u32,
+    pub calories: f64,
     pub steps: u16,
     /// Distance in meters.
     pub distance: u16,
@@ -92,9 +92,11 @@ impl ActivityDetailParser {
 
         self.first_packet = false;
 
-        let mut calories = u16::from_le_bytes([packet[7], packet[8]]) as u32;
+        let mut calories = u16::from_le_bytes([packet[7], packet[8]]) as f64;
         if self.new_calorie_protocol {
-            calories *= 10;
+            // Raw value is in 0.01-kcal units on this firmware (verified
+            // against the official app: ~3.5 units/step = 0.035 kcal/step).
+            calories /= 100.0;
         }
         let steps = u16::from_le_bytes([packet[9], packet[10]]);
         let distance = u16::from_le_bytes([packet[11], packet[12]]);

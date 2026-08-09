@@ -451,10 +451,10 @@ fn render_today_tab(f: &mut Frame, area: Rect, app: &App) {
         match steps {
             StepsResult::Details(details) => {
                 let total_steps: u32 = details.iter().map(|d| d.steps as u32).sum();
-                let total_calories: u32 = details.iter().map(|d| d.calories).sum();
+                let total_calories: f64 = details.iter().map(|d| d.calories).sum();
                 let total_distance: u32 = details.iter().map(|d| d.distance as u32).sum();
                 content.push(Line::from(format!(
-                    "  👟  Steps: {} | {} kcal | {} m",
+                    "  👟  Steps: {} | {:.0} kcal | {} m",
                     total_steps, total_calories, total_distance
                 )));
             }
