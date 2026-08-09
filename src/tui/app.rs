@@ -299,7 +299,10 @@ impl App {
             self.status_message = "Fetching battery level...".to_string();
             let device = device.clone();
             self.battery_task = Some(tokio::spawn(async move {
-                DeviceManager::get_battery_level(&device).await
+                match DeviceManager::connect_and_setup(&device).await {
+                    Ok(conn) => DeviceManager::get_battery_level(&conn).await,
+                    Err(err) => Err(err),
+                }
             }));
         }
     }
@@ -310,9 +313,12 @@ impl App {
         {
             self.status_message = "Blinking device...".to_string();
             let device = device.clone();
-            self.operation_task = Some(tokio::spawn(
-                async move { DeviceManager::blink(&device).await },
-            ));
+            self.operation_task = Some(tokio::spawn(async move {
+                match DeviceManager::connect_and_setup(&device).await {
+                    Ok(conn) => DeviceManager::blink(&conn).await,
+                    Err(err) => Err(err),
+                }
+            }));
         }
     }
 
@@ -322,9 +328,12 @@ impl App {
         {
             self.status_message = "Finding device...".to_string();
             let device = device.clone();
-            self.operation_task = Some(tokio::spawn(
-                async move { DeviceManager::find(&device).await },
-            ));
+            self.operation_task = Some(tokio::spawn(async move {
+                match DeviceManager::connect_and_setup(&device).await {
+                    Ok(conn) => DeviceManager::find(&conn).await,
+                    Err(err) => Err(err),
+                }
+            }));
         }
     }
 
@@ -334,10 +343,12 @@ impl App {
         {
             self.status_message = "Rebooting device...".to_string();
             let device = device.clone();
-            self.operation_task =
-                Some(tokio::spawn(
-                    async move { DeviceManager::reboot(&device).await },
-                ));
+            self.operation_task = Some(tokio::spawn(async move {
+                match DeviceManager::connect_and_setup(&device).await {
+                    Ok(conn) => DeviceManager::reboot(&conn).await,
+                    Err(err) => Err(err),
+                }
+            }));
         }
     }
 
@@ -352,9 +363,12 @@ impl App {
         {
             self.status_message = "Resetting device...".to_string();
             let device = device.clone();
-            self.operation_task = Some(tokio::spawn(
-                async move { DeviceManager::reset(&device).await },
-            ));
+            self.operation_task = Some(tokio::spawn(async move {
+                match DeviceManager::connect_and_setup(&device).await {
+                    Ok(conn) => DeviceManager::reset(&conn).await,
+                    Err(err) => Err(err),
+                }
+            }));
 
             self.current_screen = Screen::Idle;
         }

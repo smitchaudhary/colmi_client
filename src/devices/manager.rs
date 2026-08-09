@@ -17,18 +17,16 @@ use crate::{
         WRITE_CHARACTERISTICS,
         battery::{BatteryRequest, BatteryResponse},
         bigdata::{
-            OxygenData, SleepData, make_data_request, parse_big_data_header, parse_oxygen_data,
-            parse_sleep_data, DATA_REQUEST_ID_OXYGEN, DATA_REQUEST_ID_SLEEP,
+            DATA_REQUEST_ID_OXYGEN, DATA_REQUEST_ID_SLEEP, OxygenData, SleepData,
+            make_data_request, parse_big_data_header, parse_oxygen_data, parse_sleep_data,
         },
         blink::BlinkRequest,
         find::FindRequest,
         hr::{HeartRateLogParser, HeartRateRequest, HeartRateResult},
+        realtime::{ReadingType, RealtimeReading, RealtimeStartRequest, RealtimeStopRequest},
         reboot::RebootRequest,
-        realtime::{
-            RealtimeReading, RealtimeStartRequest, RealtimeStopRequest, ReadingType,
-        },
         reset::ResetRequest,
-        settings::{HeartRateLogSettings, SettingsRequest, CMD_HEART_RATE_LOG_SETTINGS},
+        settings::{CMD_HEART_RATE_LOG_SETTINGS, HeartRateLogSettings, SettingsRequest},
         steps::{ActivityDetailParser, StepsRequest, StepsResult},
     },
 };
@@ -38,48 +36,42 @@ use crate::{
     protocol::features::FeatureRequest,
 };
 
+#[derive(Clone)]
+pub struct Connection {
+    pub peripheral: PlatformPeripheral,
+    pub write_char: Characteristic,
+    pub notify_char: Characteristic,
+}
+
 pub struct DeviceManager;
 
 impl DeviceManager {
     const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
     const WRITE_TIMEOUT: Duration = Duration::from_secs(5);
 
-    pub async fn connect_and_setup(
-        device: &Device,
-    ) -> Result<(Characteristic, Characteristic), DeviceError> {
+    pub async fn connect_and_setup(device: &Device) -> Result<Connection, DeviceError> {
         let conn = match tokio::time::timeout(Self::CONNECT_TIMEOUT, Self::connect(device)).await {
             Ok(result) => result?,
             Err(err) => return Err(DeviceError::Timeout(err)),
         };
 
-        let (write_char, notify_char) = conn;
-
-        let write_char = write_char.ok_or(ConnectionError::CharacteristicsNotFound)?;
-        let notify_char = notify_char.ok_or(ConnectionError::CharacteristicsNotFound)?;
-
-        let peripheral = device.peripheral();
-
-        Self::subscribe_to_notifications(peripheral, &notify_char).await?;
+        Self::subscribe_to_notifications(&conn).await?;
 
         let request = FeatureRequest::new();
 
-        Self::write_request(peripheral, &write_char, request).await?;
-        let features =
-            Self::read_response_stream::<FeatureResponse>(peripheral, &notify_char, 1, 1000)
-                .await?;
+        Self::write_request(&conn, request).await?;
+        let features = Self::read_response_stream::<FeatureResponse>(&conn, 1, 1000).await?;
 
         save_device_to_config(device.clone(), features);
 
-        Ok((write_char, notify_char))
+        Ok(conn)
     }
 
-    pub async fn connect(
-        device: &Device,
-    ) -> Result<(Option<Characteristic>, Option<Characteristic>), ConnectionError> {
+    pub async fn connect(device: &Device) -> Result<Connection, ConnectionError> {
         match device.peripheral.connect().await {
             Ok(_) => {
-                let mut write_characteristics = None;
-                let mut notify_characteristics = None;
+                let mut write_char = None;
+                let mut notify_char = None;
 
                 for service in device.peripheral.services() {
                     if service.uuid.to_string() != SERVICE_UUID {
@@ -88,17 +80,20 @@ impl DeviceManager {
 
                     for char in service.characteristics {
                         if char.uuid.to_string() == NOTIFY_CHARACTERISTICS {
-                            notify_characteristics = Some(char);
+                            notify_char = Some(char);
                         } else if char.uuid.to_string() == WRITE_CHARACTERISTICS {
-                            write_characteristics = Some(char);
+                            write_char = Some(char);
                         }
                     }
                 }
 
-                if notify_characteristics.is_none() || write_characteristics.is_none() {
-                    Err(ConnectionError::CharacteristicsNotFound)
-                } else {
-                    Ok((write_characteristics, notify_characteristics))
+                match (write_char, notify_char) {
+                    (Some(write_char), Some(notify_char)) => Ok(Connection {
+                        peripheral: device.peripheral().clone(),
+                        write_char,
+                        notify_char,
+                    }),
+                    _ => Err(ConnectionError::CharacteristicsNotFound),
                 }
             }
             Err(_) => Err(ConnectionError::ConnectionFailed),
@@ -106,11 +101,10 @@ impl DeviceManager {
     }
 
     pub async fn write_request(
-        peripheral: &PlatformPeripheral,
-        write_char: &Characteristic,
+        conn: &Connection,
         request: impl Request,
     ) -> Result<(), ConnectionError> {
-        Self::write_with_timeout(peripheral, write_char, &request.as_bytes()).await
+        Self::write_with_timeout(&conn.peripheral, &conn.write_char, &request.as_bytes()).await
     }
 
     async fn write_with_timeout(
@@ -129,12 +123,10 @@ impl DeviceManager {
         }
     }
 
-    pub async fn read_response<R: Response>(
-        peripheral: &PlatformPeripheral,
-        notify_char: &Characteristic,
-    ) -> Result<R, DeviceError> {
-        let reading = peripheral
-            .read(notify_char)
+    pub async fn read_response<R: Response>(conn: &Connection) -> Result<R, DeviceError> {
+        let reading = conn
+            .peripheral
+            .read(&conn.notify_char)
             .await
             .map_err(|_| ConnectionError::ReadFailed)?;
         let result = R::from_bytes(reading)?;
@@ -142,12 +134,12 @@ impl DeviceManager {
     }
 
     pub async fn read_response_stream<R: Response>(
-        peripheral: &PlatformPeripheral,
-        notify_char: &Characteristic,
+        conn: &Connection,
         expected_command_id: u8,
         timeout_ms: u64,
     ) -> Result<R, DeviceError> {
-        let mut notifications = peripheral
+        let mut notifications = conn
+            .peripheral
             .notifications()
             .await
             .map_err(|_| ConnectionError::SubscribeFailed)?;
@@ -157,7 +149,7 @@ impl DeviceManager {
         loop {
             match timeout(timeout_duration, notifications.next()).await {
                 Ok(Some(notification)) => {
-                    if notification.uuid == notify_char.uuid {
+                    if notification.uuid == conn.notify_char.uuid {
                         let packet = &notification.value;
 
                         if crate::protocol::has_error_flag(packet) {
@@ -186,12 +178,9 @@ impl DeviceManager {
         }
     }
 
-    pub async fn subscribe_to_notifications(
-        peripheral: &PlatformPeripheral,
-        notify_char: &Characteristic,
-    ) -> Result<(), ConnectionError> {
-        peripheral
-            .subscribe(notify_char)
+    pub async fn subscribe_to_notifications(conn: &Connection) -> Result<(), ConnectionError> {
+        conn.peripheral
+            .subscribe(&conn.notify_char)
             .await
             .map_err(|_| ConnectionError::SubscribeFailed)?;
         Ok(())
@@ -199,57 +188,40 @@ impl DeviceManager {
 }
 
 impl DeviceManager {
-    pub async fn get_battery_level(device: &Device) -> Result<BatteryResponse, DeviceError> {
-        let (write_char, notify_char) = Self::connect_and_setup(device).await?;
-
-        let peripheral = device.peripheral();
-
-        let request = BatteryRequest::new();
-
-        Self::write_request(peripheral, &write_char, request).await?;
-        let response = Self::read_response::<BatteryResponse>(peripheral, &notify_char).await?;
-
+    pub async fn get_battery_level(conn: &Connection) -> Result<BatteryResponse, DeviceError> {
+        Self::write_request(conn, BatteryRequest::new()).await?;
+        let response = Self::read_response::<BatteryResponse>(conn).await?;
         Ok(response)
     }
 
     pub async fn get_heart_rate_log(
-        device: &Device,
+        conn: &Connection,
         timestamp: u32,
     ) -> Result<HeartRateResult, DeviceError> {
-        let (write_char, notify_char) = Self::connect_and_setup(device).await?;
-        let peripheral = device.peripheral();
-
-        Self::write_request(peripheral, &write_char, HeartRateRequest::new(timestamp)).await?;
+        Self::write_request(conn, HeartRateRequest::new(timestamp)).await?;
 
         let mut parser = HeartRateLogParser::new();
-        let result =
-            Self::read_split_array(peripheral, &notify_char, |packet| parser.feed(packet)).await?;
+        let result = Self::read_split_array(conn, |packet| parser.feed(packet)).await?;
         Ok(result)
     }
 
-    pub async fn get_steps(
-        device: &Device,
-        day_offset: i8,
-    ) -> Result<StepsResult, DeviceError> {
-        let (write_char, notify_char) = Self::connect_and_setup(device).await?;
-        let peripheral = device.peripheral();
-
-        Self::write_request(peripheral, &write_char, StepsRequest::new(day_offset)).await?;
+    pub async fn get_steps(conn: &Connection, day_offset: i8) -> Result<StepsResult, DeviceError> {
+        Self::write_request(conn, StepsRequest::new(day_offset)).await?;
 
         let mut parser = ActivityDetailParser::new();
-        let result =
-            Self::read_split_array(peripheral, &notify_char, |packet| parser.feed(packet)).await?;
+        let result = Self::read_split_array(conn, |packet| parser.feed(packet)).await?;
         Ok(result)
     }
 
-    pub async fn get_device_info(device: &Device) -> Result<(String, String, String), DeviceError> {
-        let (_write_char, _notify_char) = Self::connect(device).await?;
-        let peripheral = device.peripheral();
-
-        let firmware = Self::read_device_info_string(peripheral, DEVICE_INFO_FIRMWARE_UUID).await;
-        let hardware = Self::read_device_info_string(peripheral, DEVICE_INFO_HARDWARE_UUID).await;
+    pub async fn get_device_info(
+        conn: &Connection,
+    ) -> Result<(String, String, String), DeviceError> {
+        let firmware =
+            Self::read_device_info_string(&conn.peripheral, DEVICE_INFO_FIRMWARE_UUID).await;
+        let hardware =
+            Self::read_device_info_string(&conn.peripheral, DEVICE_INFO_HARDWARE_UUID).await;
         let manufacturer =
-            Self::read_device_info_string(peripheral, DEVICE_INFO_MANUFACTURER_UUID).await;
+            Self::read_device_info_string(&conn.peripheral, DEVICE_INFO_MANUFACTURER_UUID).await;
 
         Ok((firmware, hardware, manufacturer))
     }
@@ -277,15 +249,11 @@ impl DeviceManager {
     }
 
     pub async fn get_heart_rate_log_settings(
-        device: &Device,
+        conn: &Connection,
     ) -> Result<HeartRateLogSettings, DeviceError> {
-        let (write_char, notify_char) = Self::connect_and_setup(device).await?;
-        let peripheral = device.peripheral();
-
-        Self::write_request(peripheral, &write_char, SettingsRequest::read()).await?;
+        Self::write_request(conn, SettingsRequest::read()).await?;
         let response = Self::read_response_stream::<HeartRateLogSettings>(
-            peripheral,
-            &notify_char,
+            conn,
             CMD_HEART_RATE_LOG_SETTINGS,
             1000,
         )
@@ -294,22 +262,17 @@ impl DeviceManager {
     }
 
     pub async fn set_heart_rate_log_settings(
-        device: &Device,
+        conn: &Connection,
         enabled: bool,
         interval_minutes: u8,
     ) -> Result<(), DeviceError> {
-        let (write_char, notify_char) = Self::connect_and_setup(device).await?;
-        let peripheral = device.peripheral();
-
         Self::write_request(
-            peripheral,
-            &write_char,
+            conn,
             SettingsRequest::write_heart_rate(enabled, interval_minutes),
         )
         .await?;
         let _ = Self::read_response_stream::<HeartRateLogSettings>(
-            peripheral,
-            &notify_char,
+            conn,
             CMD_HEART_RATE_LOG_SETTINGS,
             1000,
         )
@@ -317,15 +280,12 @@ impl DeviceManager {
         Ok(())
     }
 
-    pub async fn get_sleep(device: &Device) -> Result<SleepData, DeviceError> {
-        let (_write_char, _notify_char) = Self::connect_and_setup(device).await?;
-        let peripheral = device.peripheral();
-
+    pub async fn get_sleep(conn: &Connection) -> Result<SleepData, DeviceError> {
         let (data_write_char, data_notify_char) =
-            Self::find_data_characteristics(peripheral).await?;
+            Self::find_data_characteristics(&conn.peripheral).await?;
 
         let buffer = Self::read_big_data(
-            peripheral,
+            &conn.peripheral,
             &data_write_char,
             &data_notify_char,
             DATA_REQUEST_ID_SLEEP,
@@ -335,15 +295,12 @@ impl DeviceManager {
         Ok(parse_sleep_data(&buffer)?)
     }
 
-    pub async fn get_oxygen(device: &Device) -> Result<OxygenData, DeviceError> {
-        let (_write_char, _notify_char) = Self::connect_and_setup(device).await?;
-        let peripheral = device.peripheral();
-
+    pub async fn get_oxygen(conn: &Connection) -> Result<OxygenData, DeviceError> {
         let (data_write_char, data_notify_char) =
-            Self::find_data_characteristics(peripheral).await?;
+            Self::find_data_characteristics(&conn.peripheral).await?;
 
         let buffer = Self::read_big_data(
-            peripheral,
+            &conn.peripheral,
             &data_write_char,
             &data_notify_char,
             DATA_REQUEST_ID_OXYGEN,
@@ -390,8 +347,7 @@ impl DeviceManager {
             .await
             .map_err(|_| ConnectionError::SubscribeFailed)?;
 
-        Self::write_with_timeout(peripheral, data_write_char, &make_data_request(data_id))
-            .await?;
+        Self::write_with_timeout(peripheral, data_write_char, &make_data_request(data_id)).await?;
 
         let mut notifications = peripheral
             .notifications()
@@ -438,11 +394,11 @@ impl DeviceManager {
     }
 
     async fn read_split_array<T>(
-        peripheral: &PlatformPeripheral,
-        notify_char: &Characteristic,
+        conn: &Connection,
         mut feed: impl FnMut(&[u8]) -> Result<Option<T>, crate::error::ProtocolError>,
     ) -> Result<T, DeviceError> {
-        let mut notifications = peripheral
+        let mut notifications = conn
+            .peripheral
             .notifications()
             .await
             .map_err(|_| ConnectionError::SubscribeFailed)?;
@@ -452,7 +408,7 @@ impl DeviceManager {
         loop {
             match timeout(timeout_duration, notifications.next()).await {
                 Ok(Some(notification)) => {
-                    if notification.uuid == notify_char.uuid {
+                    if notification.uuid == conn.notify_char.uuid {
                         let packet = &notification.value;
 
                         if crate::protocol::has_error_flag(packet) {
@@ -480,49 +436,44 @@ impl DeviceManager {
 }
 
 impl DeviceManager {
-    pub async fn blink(device: &Device) -> Result<(), DeviceError> {
-        Self::execute_device_control_command(device, BlinkRequest::new()).await
+    pub async fn blink(conn: &Connection) -> Result<(), DeviceError> {
+        Self::write_request(conn, BlinkRequest::new()).await?;
+        Ok(())
     }
 
-    pub async fn reboot(device: &Device) -> Result<(), DeviceError> {
-        Self::execute_device_control_command(device, RebootRequest::new()).await
+    pub async fn reboot(conn: &Connection) -> Result<(), DeviceError> {
+        Self::write_request(conn, RebootRequest::new()).await?;
+        Ok(())
     }
 
-    pub async fn find(device: &Device) -> Result<(), DeviceError> {
-        Self::execute_device_control_command(device, FindRequest::new()).await
+    pub async fn find(conn: &Connection) -> Result<(), DeviceError> {
+        Self::write_request(conn, FindRequest::new()).await?;
+        Ok(())
     }
 
-    pub async fn reset(device: &Device) -> Result<(), DeviceError> {
-        Self::execute_device_control_command(device, ResetRequest::new()).await
-    }
-
-    async fn execute_device_control_command(
-        device: &Device,
-        request: impl Request,
-    ) -> Result<(), DeviceError> {
-        let (write_char, _notify_char) = Self::connect(device).await?;
-        let write_char = write_char.ok_or(ConnectionError::CharacteristicsNotFound)?;
-        let peripheral = device.peripheral();
-        Self::write_request(peripheral, &write_char, request).await?;
+    pub async fn reset(conn: &Connection) -> Result<(), DeviceError> {
+        Self::write_request(conn, ResetRequest::new()).await?;
         Ok(())
     }
 
     pub async fn stream_realtime(
-        device: &Device,
+        conn: &Connection,
         reading_type: ReadingType,
         duration: Duration,
         tx: mpsc::Sender<RealtimeReading>,
     ) -> Result<(), DeviceError> {
-        let (write_char, notify_char) = Self::connect_and_setup(device).await?;
-        let peripheral = device.peripheral();
-
-        Self::write_with_timeout(peripheral, &write_char, &make_phone_info_packet()).await?;
+        Self::write_with_timeout(
+            &conn.peripheral,
+            &conn.write_char,
+            &make_phone_info_packet(),
+        )
+        .await?;
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        Self::write_request(peripheral, &write_char, RealtimeStartRequest::new(reading_type))
-            .await?;
+        Self::write_request(conn, RealtimeStartRequest::new(reading_type)).await?;
 
-        let mut notifications = peripheral
+        let mut notifications = conn
+            .peripheral
             .notifications()
             .await
             .map_err(|_| ConnectionError::SubscribeFailed)?;
@@ -536,7 +487,7 @@ impl DeviceManager {
 
             match timeout(remaining, notifications.next()).await {
                 Ok(Some(notification)) => {
-                    if notification.uuid == notify_char.uuid
+                    if notification.uuid == conn.notify_char.uuid
                         && let Ok(reading) = RealtimeReading::from_bytes(&notification.value)
                         && reading.reading_type == reading_type
                         && reading.value != 0
@@ -550,8 +501,7 @@ impl DeviceManager {
             }
         }
 
-        let _ = Self::write_request(peripheral, &write_char, RealtimeStopRequest::new(reading_type))
-            .await;
+        let _ = Self::write_request(conn, RealtimeStopRequest::new(reading_type)).await;
 
         Ok(())
     }
